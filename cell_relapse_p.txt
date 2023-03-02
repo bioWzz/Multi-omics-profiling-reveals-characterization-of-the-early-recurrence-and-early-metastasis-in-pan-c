@@ -1,0 +1,55 @@
+	stage1	stage2	stage3	stage45
+Aneuploidy Score	0.28	0.28	0.0012	0.84
+B Cells Memory	0.04	0.61	0.35	0.95
+B Cells Naive	0.0026	0.1	0.00062	0.44
+BCR Evenness	0.11	0.70 	0.43	0.24
+BCR Richness	0.61	0.47	0.55	0.87
+BCR Shannon	0.88	0.47	0.39	0.61
+CTA Score	0.63	0.026	1.60E-07	0.0052
+Dendritic Cells	0.16	0.071	0.45	0.037
+Dendritic Cells Activated	0.61	0.075	0.088	0.07
+Dendritic Cells Resting	0.38	0.92	0.0054	0.83
+Eosinophils	0.28	0.71	0.2	0.36
+Fraction Altered	0.032	0.064	2.2E-16	0.013
+Homologous Recombination Defects	0.00036	0.0016	2.2E-16	0.000068
+IFN-gamma Response	0.73	0.32	0.19	0.0036
+Indel Neoantigens	0.73	0.95	0.46	0.82
+Intratumor Heterogeneity	0.066	0.66	0.00043	0.91
+Leukocyte Fraction	0.8	0.41	6.40E-16	0.0045
+Lymphocyte Infiltration Signature Score	0.18	0.011	1.20E-12	0.0038
+Lymphocytes	0.76	0.16	1.20E-08	0.0039
+Macrophage Regulation	0.018	0.14	0.00032	0.011
+Macrophages	0.97	0.28	2.10E-08	0.053
+Macrophages M0	0.31	0.98	0.36	0.26
+Macrophages M1	0.44	0.8	0.2	0.96
+Macrophages M2	0.65	0.38	3.60E-10	0.4
+Mast Cells	0.2	0.41	0.43	0.24
+Mast Cells Activated	0.2	0.58	0.53	0.41
+Mast Cells Resting	0.81	0.25	0.57	0.65
+Monocytes	0.3	0.013	9.80E-08	0.91
+Neutrophils	0.41	0.24	0.0062	0.63
+NK Cells Activated	0.069	0.03	1.90E-08	0.11
+NK Cells Resting	0.51	0.69	0.0006	0.29
+Nonsilent Mutation Rate	0.73	0.19	0.62	0.96
+Number of Segments	0.0011	0.0085	2.2E-16	0.00042
+Plasma Cells	0.33	0.091	4.80E-09	0.53
+Proliferation	0.15	0.75	0.021	0.042
+Silent Mutation Rate	0.64	0.16	0.15	0.95
+SNV Neoantigens	0.12	0.3	0.81	0.59
+Stromal Fraction	0.33	0.43	2.50E-12	0.091
+T Cells CD4 Memory Activated	0.045	0.2	2.80E-05	0.36
+T Cells CD4 Memory Resting	0.73	0.47	0.09	0.065
+T Cells CD4 Naive	0.96	0.041	0.0057	0.75
+T Cells CD8	0.17	0.18	8.50E-08	0.027
+T Cells Follicular Helper	0.82	0.56	0.0016	0.39
+T Cells gamma delta	0.87	0.22	0.84	0.98
+T Cells Regulatory Tregs	0.043	0.23	0.00098	0.3
+TCR Evenness	0.0061	0.43	0.013	0.78
+TCR Richness	0.032	0.28	0.71	0.056
+TCR Shannon	0.19	0.47	0.94	0.11
+TGF-beta Response	0.012	0.39	2.40E-08	0.81
+Th1 Cells	0.0037	0.0027	2.2E-16	0.015
+Th17 Cells	0.0027	0.057	0.05	0.83
+Th2 Cells	0.26	0.017	4.60E-05	0.38
+TIL Regional Fraction	0.28	0.85	0.5	0.85
+Wound Healing	0.44	0.65	0.00018	0.037
