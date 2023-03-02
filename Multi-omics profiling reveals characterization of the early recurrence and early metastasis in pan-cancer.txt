@@ -1,0 +1,4169 @@
+###############################################
+
+#The survival of patients with primary recurrence and metastasis in different stages was compared#
+
+setwd("D://danni//1")
+library(ggplot2)
+library(RColorBrewer)
+library(survival)
+library(survminer)
+###selected the color of recurrence and metastasis in different stages###
+display.brewer.all(type = "seq")
+lb_colors1<-brewer.pal(9,"BuGn");lb_colors1<-lb_colors1[5:7]
+lb_colors2<-brewer.pal(9,"PuBu");lb_colors2<-lb_colors2[5:7]
+lb_colors45<-brewer.pal(9,"Purples");lb_colors45<-lb_colors45[5:7]
+display.brewer.all(type = "qual")
+display.brewer.all(type = "div")
+lb_colors3<-brewer.pal(11,"BrBG");lb_colors3<-lb_colors3[4:2]
+lb_colors<-c(lb_colors1,lb_colors2,lb_colors3,lb_colors45)
+
+
+
+##The clinical data after screening were read##
+##clinical.txt  : Each row represents a sample and each column represents a clinical feature##
+cli<-read.table("clinical.txt",header = T,sep = "\t",row.names = 1)
+cli$category<-as.factor(cli$category)
+#row.names(cli)<-cli$X;cli<-cli[,-1]
+
+
+
+###Use the ggplot package for drawing plots###
+ggplot(cli,aes(x= stage,fill = class)) +
+  geom_bar(na.rm = T,position = "fill")  +  ##barplot
+  scale_fill_manual( values = c("#A1BC61","#EE9A49","#EEB422")) +
+  #coord_flip()+
+  theme(axis.text.x = element_text(size = 10),    ###coordinate text
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+##The proportion of recurrence in each stage
+cli$relapse<-as.factor(cli$relapse)
+ggplot(cli,aes(x= stage,fill = relapse)) +
+  geom_bar(na.rm = T,position = "fill")  +
+  scale_fill_manual( values = c("#A1BC61","#EE9A49")) +
+  #coord_flip()+
+  theme(axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+
+###The proportion of metastasis in each stage
+cli$transfer<-as.factor(cli$transfer)
+ggplot(cli,aes(x= stage,fill = transfer)) +
+  geom_bar(na.rm = T,position = "fill")  +
+  scale_fill_manual( values = c("#A1BC61","#EEB422")) +
+  #coord_flip()+
+  theme(axis.text.x = element_text(size = 10),    ###主题
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+
+##Survival analysis##
+#time.txt: Survival data#
+time<-read.table("time.txt",header = T,sep = "\t")
+time<-time[-which(duplicated(substring(time$sampleID,1,12))),]
+time$sampleID<-substring(time$sampleID,1,12)
+time$sampleID<-gsub("\\.","-",time$sampleID) 
+row.names(time)<-time$sampleID;time<-time[,-1]
+ao<-intersect(row.names(cli),row.names(time))
+cli_time<-cbind(cli[ao,],time[ao,])
+for(i in 1:8324){
+  if(is.na(cli_time$days_to_death[i])){
+    cli_time$days_to_death[i]<-cli_time$days_to_last_followup[i]
+  }}
+
+#Overall survival#
+library(survival)
+kmsurvival <- survfit(Surv(days_to_death, vital_status) ~ class,data = cli_time)
+dif <- survdiff(Surv(days_to_death, vital_status) ~ class,data = cli_time)
+p_value <- pchisq(dif$chisq,1,lower.tail=F)    #1.592301e-38
+plot(kmsurvival,col=c("#8ec06c","#788cb6","#cd595a"),xlab='Survival time',ylab='Survival probabilities',lwd = 3.5,cex.axis = 2.0,cex.lab = 2.0)
+
+#Survival analysis at different stages of cancer#
+cli_s1<-cli_time[which(cli_time$stage == "Stage I"),]
+kmsurvival <- survfit(Surv(days_to_death, vital_status) ~ category,data = cli_s1)
+dif <- survdiff(Surv(days_to_death, vital_status) ~ category,data = cli_s1)
+p_value <- pchisq(dif$chisq,1,lower.tail=F)    #4.439083e-11
+plot(kmsurvival,col=c("#8ec06c","#788cb6","#cd595a"),xlab='Survival time',ylab='Survival probabilities',lwd = 3.5,cex.axis = 2.0,cex.lab = 2.0)
+
+cli_s1r<-rbind(cli_s1[which(cli_s1$class == "normal"),],cli_s1[which(cli_s1$class == "relapse"),])
+kmsurvival <- survfit(Surv(days_to_death, vital_status) ~ category,data = cli_s1r)
+dif <- survdiff(Surv(days_to_death, vital_status) ~ category,data = cli_s1r)
+p_value <- pchisq(dif$chisq,1,lower.tail=F)    #0.3714224
+plot(kmsurvival,col=c("#8ec06c","#788cb6"),xlab='Survival time',ylab='Survival probabilities',lwd = 3.5,cex.axis = 2.0,cex.lab = 2.0)
+
+
+
+cli_s2<-cli_time[which(cli_time$stage == "Stage II"),]
+kmsurvival <- survfit(Surv(days_to_death, vital_status) ~ category,data = cli_s2)
+dif <- survdiff(Surv(days_to_death, vital_status) ~ category,data = cli_s2)
+p_value <- pchisq(dif$chisq,1,lower.tail=F)    #1.852486e-21
+plot(kmsurvival,col=c("#8ec06c","#788cb6","#cd595a"),xlab='Survival time',ylab='Survival probabilities',lwd = 3.5,cex.axis = 2.0,cex.lab = 2.0)
+
+cli_s3<-cli_time[which(cli_time$stage == "Stage III"),]
+kmsurvival <- survfit(Surv(days_to_death, vital_status) ~ category,data = cli_s3)
+dif <- survdiff(Surv(days_to_death, vital_status) ~ category,data = cli_s3)#求生存时间
+p_value <- pchisq(dif$chisq,1,lower.tail=F)   #5.203858e-14 
+plot(kmsurvival,col=c("#8ec06c","#788cb6","#cd595a"),xlab='Survival time',ylab='Survival probabilities',lwd = 3.5,cex.axis = 2.0,cex.lab = 2.0)
+
+cli_s45<-rbind(cli_time[which(cli_time$stage == "Stage IV"),],cli_time[which(cli_time$stage == "Stage X"),])
+kmsurvival <- survfit(Surv(days_to_death, vital_status) ~ category,data = cli_s45)
+dif <- survdiff(Surv(days_to_death, vital_status) ~ category,data = cli_s45)#求生存时间
+p_value <- pchisq(dif$chisq,1,lower.tail=F)    #0.1331998
+plot(kmsurvival,col=c("#8ec06c","#788cb6","#cd595a"),xlab='Survival time',ylab='Survival probabilities',lwd = 3.5,cex.axis = 2.0,cex.lab = 2.0)
+
+
+
+
+##Cox risk model##
+#Finding the hazard ratio#
+immu_cox<-immu[intersect(row.names(immu),row.names(cli)),]
+cox<-cbind(immu_cox[,c(32,33,34,35)],cli[intersect(row.names(immu),row.names(cli)),])
+
+cox_s1<-cox[which(cox$stage == "Stage I"),]
+rtcox1<-summary(coxph(Surv(OS.Time, OS) ~ class, data = cox_s1))$coefficients
+rtCI1<-as.data.frame(summary(coxph(Surv(OS.Time, OS) ~ class, data = cox_s1))[8])[,c(3,4)]
+rtcox1<-as.data.frame(rtcox1);rtcox1$stage<-"Stage I";rtCI1<-as.data.frame(rtCI1)
+
+cox_s2<-cox[which(cox$stage == "Stage II"),]
+rtcox2<-summary(coxph(Surv(OS.Time, OS) ~ class, data = cox_s2))$coefficients
+rtCI2<-as.data.frame(summary(coxph(Surv(OS.Time, OS) ~ class, data = cox_s2))[8])[,c(3,4)]
+rtcox2<-as.data.frame(rtcox2);rtcox2$stage<-"Stage II";rtCI2<-as.data.frame(rtCI2)
+
+cox_s3<-cox[which(cox$stage == "Stage III"),]
+rtcox3<-summary(coxph(Surv(OS.Time, OS) ~ class, data = cox_s3))$coefficients
+rtCI3<-as.data.frame(summary(coxph(Surv(OS.Time, OS) ~ class, data = cox_s3))[8])[,c(3,4)]
+rtcox3<-as.data.frame(rtcox3);rtcox3$stage<-"Stage III";rtCI3<-as.data.frame(rtCI3)
+
+cox_s45<-rbind(cox[which(cox$stage == "Stage IV"),],cox[which(cox$stage == "Stage X"),])
+rtcox45<-summary(coxph(Surv(OS.Time, OS) ~ class, data = cox_s45))$coefficients
+rtCI45<-as.data.frame(summary(coxph(Surv(OS.Time, OS) ~ class, data = cox_s45))[8])[,c(3,4)]
+rtcox45<-as.data.frame(rtcox45);rtcox45$stage<-"Stage IV|Stage V";rtCI45<-as.data.frame(rtCI45)
+
+rtCI<-rbind(rtCI1,rtCI2);rtCI<-rbind(rtCI,rtCI3);rtCI<-rbind(rtCI,rtCI45)
+rtcox<-rbind(rtcox1,rtcox2);rtcox<-rbind(rtcox,rtcox3);rtcox<-rbind(rtcox,rtcox45)
+
+rtcox<-cbind(rtCI,rtcox)
+
+rtcoxl<-rtcox[,c(1,4,7,8)];colnames(rtcoxl)<-c("CI","HR","p","stage");rtcoxh<-rtcox[,c(2,4,7,8)];colnames(rtcoxh)<-c("CI","HR","p","stage")  #CI按高低上下连接
+rtcox<-rbind(rtcoxl,rtcoxh)
+rtcox$class<-c("relapse","transfer")
+
+#rtcox$HR<-log10(rtcox$HR);rtcox$CI<-log10(rtcox$CI)
+rtcox$HR1<-rtcox$HR
+rtcox$HR[which(rtcox$HR1 > 1)]<-"high"
+rtcox$HR[which(rtcox$HR1 < 1)]<-"low"
+rtcox$stage<-as.factor(rtcox$stage)
+#rtcox<-rtcox[which(rtcox$p < 0.05),]
+
+#Plot based on hazard ratio#
+ggplot(rtcox,aes(x = stage,y = HR1,group = class,colour = class ))+
+  geom_line(size = 1.5) +
+  scale_colour_manual(values=c("#FFD700","#E3170D"))+
+  geom_hline(yintercept = 0,size = 1.0)+
+  geom_point(aes(x = stage,y = HR1),size = 3.0)+
+  theme(axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        legend.position = "right",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_text(size = 8),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+
+
+rtcox$class<-as.factor(rtcox$class)
+ggplot(rtcox,aes(x = HR1,y = class,) )+
+  facet_grid(stage ~ .) +
+  geom_line(aes(x=CI,y = class,color = class),size = 0.8,) + 
+  geom_point(aes(x = HR1,y = class,color = class),size=5.0,shape = 15) +
+  geom_vline(aes(xintercept=0.5), colour=c("#FFBB8A"), linetype="dashed") +
+  geom_vline(aes(xintercept=1), colour=c("#FFBB8A"), linetype="dashed") +
+  geom_vline(aes(xintercept=1.5), colour=c("#FFBB8A"), linetype="dashed") +
+  geom_vline(aes(xintercept=2), colour=c("#FFBB8A"), linetype="dashed") +
+  geom_vline(aes(xintercept=3), colour=c("#FFBB8A"), linetype="dashed") +
+  #scale_color_gradientn(colors = colorRampPalette(brewer.pal(8, 'Dark2')[5:7])(50)) +
+  scale_colour_manual(values=c("#788cb6","#cd595a"))+ 
+  theme(axis.text.x = element_blank(),
+        axis.text.y = element_blank(),
+        legend.position = "left",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_text(size = 8),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+
+
+
+
+
+
+
+
+
+###################Clinical characteristics############################
+#The differences in clinical characteristics among primary, recurrent and metastatic patients in different stages were compared#
+#gender,age,stage,weight of cancer,cancer type#
+
+rm(list = ls(all = TRUE))
+setwd("D://danni//1//结果图//2 临床特征")
+library(ggplot2)
+library(RColorBrewer)
+library(ggsignif)
+library(ggpubr)
+
+
+#clinical.txtc#
+cli<-read.table("D://danni//1//clinical.txt",header = T,sep = "\t",row.names = 1)
+cli$category<-as.factor(cli$category)
+
+
+
+display.brewer.all(type = "seq")
+lb_colors1<-brewer.pal(9,"BuGn");lb_colors1<-lb_colors1[5:7]
+lb_colors2<-brewer.pal(9,"PuBu");lb_colors2<-lb_colors2[5:7]
+lb_colors45<-brewer.pal(9,"Purples");lb_colors45<-lb_colors45[5:7]
+display.brewer.all(type = "qual")
+display.brewer.all(type = "div")
+lb_colors3<-brewer.pal(11,"BrBG");lb_colors3<-lb_colors3[4:2]
+lb_colors<-c(lb_colors1,lb_colors2,lb_colors3,lb_colors45)
+###Based on the type of cancer###
+p<-ggplot(cli,aes(x= cancer,fill = category)) +
+  geom_bar(na.rm = T,position = "fill")  +
+  scale_fill_manual( values = c(lb_colors)) +
+  coord_flip()+
+  theme(axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+ggsave("cancer.pdf",p,width = 15, height = 8)
+
+###Based on the stage of cancer###
+#stage<-cli[-which(cli$stage == ""),]
+ggplot(cli,aes(x=stage,fill =category)) + 
+  geom_bar(na.rm = T,position = "fill") +
+  scale_fill_manual(name="Class",labels = paste(paste("Subtype",1:12)), 
+                    values = c(lb_colors)) +
+  theme(axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+###Based on the age###
+age<-cli[-which(cli$age == ""),]
+ggplot(age,aes(x=age,fill =category)) + 
+  geom_bar(na.rm = T,position = "fill") +
+  scale_fill_manual(name="Class",labels = paste(paste("Subtype",1:12),sep = ":"), 
+                    values = c(lb_colors)) +
+  theme(axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+###Based on the gender###
+#gender<-cli[-which(cli$gender == ""),]
+p<-ggplot(cli,aes(x=gender,fill =category)) + 
+  geom_bar(na.rm = T,position = "fill") +
+  scale_fill_manual(name="Class",labels = paste(paste("Subtype",1:12),sep = ":"), 
+                    values = c(lb_colors)) +
+  coord_flip()+
+  theme(axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+ggsave("gender.pdf",p,width = 15, height = 4)
+
+
+
+###Based on the weight of cancer###
+cli<-read.table("D://danni//1//clinical.txt",header = T,sep = "\t",row.names = 1)
+cli$category<-as.factor(cli$category)
+
+
+cli_all<-read.table("D://danni//1//clinical-all.txt",header = T,sep = "\t",row.names = 1)
+cli_all<-cli_all[-which(duplicated(substring(row.names(cli_all),1,12))),]
+cli_w<-as.data.frame(cli_all$initial_weight);
+row.names(cli_w)<-substring(row.names(cli_all),1,12)
+colnames(cli_w)<-"weight"
+ao<-intersect(row.names(cli_w),row.names(cli))
+cli<-cli[ao,];cli_w<-cli_w[ao,]
+cli$weight<-cli_w
+weight<-cli[-which(!complete.cases(cli$weight)),]
+
+ggplot(weight,aes(x = factor(category),y= weight),fill =  category) + 
+  stat_boxplot(geom="errorbar",width=0.15)+
+  geom_boxplot(fill = c(lb_colors),width=0.5,outlier.colour = NA) +
+  #ylim(0,800)+
+  stat_compare_means(comparisons = list(c("1", "2"),c("1","3"),c("4","5"),c("4","6"),c("7","8"),c("7","9"),c("10","11"),c("10","12")),method = "t.test")+
+  stat_compare_means(label.y = 4500)+  ##Calculate the P-value of the difference between classes
+  theme(axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())+
+  #geom_signif(comparisons = compaired,step_increase = 0.1, map_signif_level = FALSE,test = t.test)+
+  stat_summary(fun="mean",geom="point",shape=23,size=2,fill="white")#Marked mean value
+
+###The survival difference of recurrence and metastasis in different stages###
+time<-read.table("D://danni//1//time.txt",header = T,sep = "\t")
+time<-time[-which(duplicated(substring(time$sampleID,1,12))),]
+time$sampleID<-substring(time$sampleID,1,12)
+time$sampleID<-gsub("\\.","-",time$sampleID)
+row.names(time)<-time$sampleID;time<-time[,-1]
+ao<-intersect(row.names(cli),row.names(time))
+cli_time<-cbind(cli[ao,],time[ao,])
+for(i in 1:8324){
+  if(is.na(cli_time$days_to_death[i])){
+    cli_time$days_to_death[i]<-cli_time$days_to_last_followup[i]
+  }}
+
+
+library(survival)
+kmsurvival <- survfit(Surv(days_to_death, vital_status) ~ category,data = cli_time)
+dif <- survdiff(Surv(days_to_death, vital_status) ~ category,data = cli_time)
+p_value <- pchisq(dif$chisq,1,lower.tail=F)    #1.000663e-211
+plot(kmsurvival,col=c(lb_colors),xlab='Survival time',ylab='Survival probabilities',lwd = 3.5,cex.axis = 2.0,cex.lab = 2.0)
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+#####################Transcriptome#############################
+#Gene expression data were used to screen stage I specific differentially expressed genes related to recurrence and metastasis#
+#cox risk model was constructed to further screen genes#
+#Classifiers were constructed to verify whether the identified genes had the ability to predict early recurrence and metastasis#
+#External validation#
+
+setwd("/pub6/siyu/hdn")
+if (!requireNamespace("BiocManager", quietly = TRUE))
+  #install.packages("BiocManager")
+  
+  BiocManager::install("limma")
+library(limma)
+library(dplyr)
+library(edgeR)
+library(statmod)
+###Gene expression data: Rows represent genes, columns represent samples, and data are gene expression values in samples#
+cancerid<-c("BLCA","BRCA","CESC","CHOL","COAD","DLBC","ESCA","GBM","HNSC","KICH","KIRC","KIRP","LGG","LIHC","LUAD","LUSC","MESO","OV","PAAD","PRAD","READ","SARC","SKCM","STAD","TGCT","THCA","THYM","UCEC","UCS","UVM")
+cancer <- read.table("/pub6/siyu/ucsc-mRNA-count/TCGA-ACC.htseq_counts.tsv",sep = "\t",header = T,row.names = 1)
+for (can in cancerid){
+  cancer1 <- read.table(paste0("/pub6/siyu/ucsc-mRNA-count/TCGA-",can,".htseq_counts.tsv"),sep = "\t",header = T,row.names = 1)
+  cancer<-cbind(cancer,cancer1)
+  print(can)
+}
+cancer<-cancer[!apply(cancer,1,function(x){sum(floor(x)==0)>7147}),]
+#cancer<-cancer[-which(duplicated(substring(row.names(cancer),1,15))),]
+row.names(cancer)<-substring(row.names(cancer),1,15)
+colnames(cancer)<-gsub("\\.","-",colnames(cancer))
+colnames(cancer)<-substring(colnames(cancer),1,12)
+cancer<-cancer[,-which(duplicated(colnames(cancer)))]
+rawcancer<-cancer
+rawcancer<-2^rawcancer-1  ##delogarithm
+#The output was the expression values of all genes in all pancarcinoma samples in the TCGA database#
+
+
+clinical<-read.table("clinical.txt",sep = "\t",header = T,row.names = 1)
+clinical$category<-as.factor(clinical$category)
+
+
+
+
+
+
+
+#Samples were separated according to cancer stage and recurrence or metastasis status#
+s1<-clinical[which(clinical$category == 1),]
+s2<-clinical[which(clinical$category == 2),]
+ao<-c()
+for(i in 1:length(row.names(s1))){
+  for(j in 1:length(colnames(rawcancer))){
+    if(row.names(s1)[i] == colnames(rawcancer)[j]){
+      ao[j]<-j
+    }
+  }
+}
+ao<-na.omit(ao)
+length(ao)
+cancer1<-rawcancer[,ao]
+
+ao<-c()
+for(i in 1:length(row.names(s2))){
+  for(j in 1:length(colnames(rawcancer))){
+    if(row.names(s2)[i] == colnames(rawcancer)[j]){
+      ao[j]<-j
+    }
+  }
+}
+ao<-na.omit(ao)
+length(ao)
+cancer2<-rawcancer[,ao]
+
+
+
+
+
+###Differentially expressed genes were identified by fold-change value and p value###
+cancer10<-read.csv("cancer10.csv",row.names = 1)
+cancer12<-read.csv("cancer12.csv",row.names = 1)
+
+pan<-cbind(cancer7,cancer9)
+group1<-rep("none",length(colnames(cancer7)))
+group2<-rep("relapse",length(colnames(cancer11)));group2<-rep("transfer",length(colnames(cancer9)))
+group<-as.factor(c(group1,group2))
+design <- model.matrix(~group)    #Building a grouping matrix
+
+#Raw expression data were processed#
+dgelist <- DGEList(counts = pan)
+keep <- rowSums(cpm(dgelist) > 1 ) >= 2 
+dgelist <- dgelist[keep, ,keep.lib.sizes = FALSE]
+dgelist_norm <- calcNormFactors(dgelist)   #standardization（TMM）
+dge <- voom(dgelist_norm, design, plot = TRUE) 
+
+transfer_s45<-dge$E  
+#Normalized expression values are obtained,some of these data are shown in expression.csv#
+
+
+
+
+fit <- lmFit(dge, design)     #Fit model
+lrt <- eBayes(fit,trend = F) 
+topTable(lrt,coef = ncol(design))
+
+write.csv(topTable(lrt, n = nrow(dgelist$counts)), '8.csv', quote = FALSE) 
+#Output main results: differentially expressed genes.xls#
+
+
+
+###Convert ENSG to SYMBOL##
+library("AnnotationDbi")
+library("org.Hs.eg.db")
+ENSEMBL<-row.names(dge_de)
+gene<-data.frame(ENSEMBL)
+gene$symbol<-mapIds(org.Hs.eg.db,keys = ENSEMBL,column = "SYMBOL",keytype = "ENSEMBL",multiVals = "first")
+gene<-as.data.frame(gene$symbol)
+
+
+dge_de<-cbind(dge_de,gene)
+
+
+write.csv(dge_de, 'chayi.csv', quote = FALSE)
+
+rm(list = ls(all = TRUE))
+setwd("D://danni//1//结果图//转录组//差异基因(比正常)")
+library(pheatmap)
+
+
+###recurrence###
+#The resulting data after the difference analysis were read in: differentially expressed genes.xls (part)#
+s1r<-read.table("stage1 relapse.txt",header = T,sep = "\t",row.names = 1)
+s2r<-read.table("stage2 relapse.txt",header = T,sep = "\t",row.names = 1)
+s3r<-read.table("stage3 relapse.txt",header = T,sep = "\t",row.names = 1)
+s45r<-read.table("stage45 relapse.txt",header = T,sep = "\t",row.names = 1)
+
+#Genes differentially expressed only in stage I were screened#
+ao1<-intersect(row.names(s1r),row.names(s2r))
+ao2<-intersect(row.names(s3r),row.names(s45r))
+ao<-intersect(ao1,ao2)
+
+s1r<-s1r[ao,];s2r<-s2r[ao,];s3r<-s3r[ao,];s45r<-s45r[ao,]
+relapse<-as.data.frame(cbind(s1r$logFC,s2r$logFC));relapse<-cbind(relapse,s3r$logFC);relapse<-cbind(relapse,s45r$logFC)
+colnames(relapse)<-c("stage1","stage2","stage3","stage45");row.names(relapse)<-row.names(s1r)
+write.csv(relapse,"relapse.csv")
+#relapse_stage1<-relapse[c(1,18,47),]
+#relapse_stage1<-relapse[c(18,47),]
+
+
+pheatmap(relapse,cluster_col = F,cluster_row = TRUE,show_rownames = T,
+         color = c(colorRampPalette(colors = c("blue","white"))(floor(abs(min(relapse))/0.001)),colorRampPalette(colors = c("white","red"))(floor(abs(max(relapse))/0.001))),
+         breaks = c(seq(min(relapse),-0.001,by=0.001),seq(0,max(relapse),by=0.001)),
+         angle_col = 0 
+)
+
+
+
+###metastasis###
+s1t<-read.table("stage1 transfer.txt",header = T,sep = "\t",row.names = 1)
+s2t<-read.table("stage2 transfer.txt",header = T,sep = "\t",row.names = 1)
+s3t<-read.table("stage3 transfer.txt",header = T,sep = "\t",row.names = 1)
+s45t<-read.table("stage45 transfer.txt",header = T,sep = "\t",row.names = 1)
+
+#Genes differentially expressed only in stage I were screened#
+ao1<-intersect(row.names(s1t),row.names(s2t))
+ao2<-intersect(row.names(s3t),row.names(s45t))
+ao<-intersect(ao1,ao2)
+
+s1t<-s1t[ao,];s2t<-s2t[ao,];s3t<-s3t[ao,];s45t<-s45t[ao,]
+transfer<-as.data.frame(cbind(s1t$logFC,s2t$logFC));transfer<-cbind(transfer,s3t$logFC);transfer<-cbind(transfer,s45t$logFC)
+colnames(transfer)<-c("stage1","stage2","stage3","stage45");row.names(transfer)<-row.names(s1t)
+write.csv(transfer,"transfer.csv")
+#transfer_stage1<-transfer[c(25,29,4,5,7),]
+#transfer_stage1<-transfer[c(5,7),]
+
+pheatmap(transfer,cluster_col = F,cluster_row = TRUE,show_rownames = T,
+         color = c(colorRampPalette(colors = c("blue","white"))(floor(abs(min(transfer))/0.001)),colorRampPalette(colors = c("white","red"))(floor(abs(max(transfer))/0.001))),
+         breaks = c(seq(min(transfer),-0.001,by=0.001),seq(0,max(transfer),by=0.001)),
+         angle_col = 0
+)
+
+
+##Classifier were constructed to verify whether the identified genes could predict early recurrence and metastasis
+library(survival)
+library(ggplot2)
+library(ggpubr)
+library(survminer)
+library(AnnotationDbi)
+library(org.Hs.eg.db)
+library(forestplot)
+######recurrence######
+relapse_s1<-read.csv("relapse_s1.csv",row.names = 1)
+clinical<-read.table("clinical.txt",sep = "\t",header = T,row.names = 1)
+clinical$category<-as.factor(clinical$category)
+ao<-intersect(row.names(clinical),row.names(relapse_s1))
+relapse_s1<-relapse_s1[ao,];clinical_s1<-clinical[ao,]
+relapse_s1$category<-clinical_s1$category;relapse_s1$stage<-clinical_s1$stage
+normal_r1<-relapse_s1[which(relapse_s1$category == 1),]
+relapse_s1<-relapse_s1[which(relapse_s1$category == 2),]
+
+
+colnames(relapse_s1)[1:14]<-mapIds(org.Hs.eg.db,keys=colnames(relapse_s1)[1:14],column="SYMBOL",keytype="ENSEMBL",multiVals="first")
+colnames(normal_r1)[1:14]<-mapIds(org.Hs.eg.db,keys=colnames(normal_r1)[1:14],column="SYMBOL",keytype="ENSEMBL",multiVals="first")
+
+#20% of the data were randomly selected as the test set#
+sj<-sample(1:158,32)  
+relapse_s1_t<-relapse_s1[sj,]
+relapse_s1<-relapse_s1[-sj,]
+sj<-sample(1:2245,449) 
+relapse_s1<-rbind(relapse_s1,normal_r1[-sj,])
+normal_r1<-normal_r1[sj,]
+relapse_s1_t<-rbind(relapse_s1_t,normal_r1)
+
+#The cox hazard model was constructed using the training set#
+relapse_cox1<-summary(coxph(Surv(OS.Time, OS) ~ FOXA1, data = relapse_s1))$coefficients
+relapse_cox1<-cbind(relapse_cox1,as.data.frame(summary(coxph(Surv(OS.Time, OS) ~ FOXA1, data = relapse_s1))[8])[,c(3,4)])
+for(i in colnames(relapse_s1)[2:14]){
+  relapse_cox11<-summary(coxph(Surv(OS.Time, OS) ~ get(i), data = relapse_s1))$coefficients
+  relapse_cox11<-cbind(relapse_cox11,as.data.frame(summary(coxph(Surv(OS.Time, OS) ~ get(i), data = relapse_s1))[8])[,c(3,4)])
+  relapse_cox1<-rbind(relapse_cox1,relapse_cox11)
+}
+colnames(relapse_cox1)<-c("coef","HR","error","z","p","CIlow","CIhigh")
+row.names(relapse_cox1)<-colnames(relapse_s1)[1:14]
+
+
+
+#Forestplot to see the results#
+relapse_cox1<-relapse_cox1[,c(2,5,6,7)]
+relapse_cox1<-relapse_cox1[which(relapse_cox1$p < 0.05),]
+relapse_cox1$gene<-row.names(relapse_cox1)
+forestplot(relapse_cox1,
+           mean = relapse_cox1$HR,
+           lower = relapse_cox1$CIlow,
+           upper = relapse_cox1$CIhigh,
+           zero = 1,
+           xlog=FALSE,
+           fn.ci_norm = fpDrawCircleCI,
+           boxsize = 0.1,
+           col=fpColors(line = "#69a794",  "#dd8047","#a5ab81","#d8b25c","#968c8c"
+                        box="#69a794"),    
+           lty.ci = 7, 
+           lwd.ci = 3,  
+           ci.vertices.height = 0.10,
+           txt_gp = fpTxtGp(ticks = gpar(cex = 0.5), xlab = gpar(cex = 0.7), cex = 0.7),
+           lineheight = "auto")
+
+
+a<-c()
+for(i in 1:1000){
+  relapse_s1_train<-relapse_s1[,intersect(colnames(relapse_s1),row.names(relapse_cox1[which(relapse_cox1$HR > 1),]))]
+  relapse_s1_train$class<-relapse_s1$category
+  relapse_s1_train$class<-as.factor(as.numeric(relapse_s1_train$class)) 
+  relapse_s1_test<-relapse_s1_t[,intersect(colnames(relapse_s1),row.names(relapse_cox1[which(relapse_cox1$HR > 1),]))]
+  ao<-intersect(row.names(relapse_s1_test),row.names(clinical))
+  relapse_s1_test<-cbind(relapse_s1_test,clinical[ao,]$category)
+  colnames(relapse_s1_test)[5]<-"class"
+  relapse_s1_test$class<-as.factor(as.numeric(relapse_s1_test$class))
+  
+  
+  relapse_s1_train<-relapse_s1_train[c(1:126,sample(127:1922,126)),]
+  relapse_s1_test<-relapse_s1_test[c(1:32,sample(33:481,32)),]
+  
+  svmres <- svm(class~.,data = relapse_s1_train, type = 'C',kernel = 'radial')
+  pre_svm <- predict(svmres,newdata = relapse_s1_test)
+  obs_p_svm <-data.frame(prob=pre_svm,obs=relapse_s1_test$class)
+  svm_roc <- roc(relapse_s1_test$class,as.numeric(pre_svm))#
+  a[i]<-svm_roc$auc
+  write.csv(relapse_s1_test,paste0("D://danni//1//结果图//转录组//分类器//ss//relapse_s1_test_",svm_roc$auc,".csv"))
+  write.csv(relapse_s1_train,paste0("D://danni//1//结果图//转录组//分类器//ss//relapse_s1_train_",svm_roc$auc,".csv"))
+}
+max(a)
+
+relapse_s1_test<-read.csv("D://danni//1//结果图//转录组//分类器//relapse//0.766（2）//relapse_s1_test_0.859375.csv",row.names = 1)
+relapse_s1_train<-read.csv("D://danni//1//结果图//转录组//分类器//relapse//0.766（2）//relapse_s1_train_0.859375.csv",row.names = 1)
+#relapse_s1_test<-relapse_s1_test[,c(2,3,4,6)]
+#relapse_s1_train<-relapse_s1_train[,c(2,3,4,6)]
+ao<-intersect(row.names(relapse_s1),row.names(relapse_s1_train))
+ss<-relapse_s1[ao,]
+relapse_coxs<-summary(coxph(Surv(OS.Time, OS) ~ FOXA1, data = ss))$coefficients
+relapse_coxs<-cbind(relapse_coxs,as.data.frame(summary(coxph(Surv(OS.Time, OS) ~ FOXA1, data = ss))[8])[,c(3,4)])
+for(i in colnames(relapse_s1)[2:14]){
+       relapse_cox11<-summary(coxph(Surv(OS.Time, OS) ~ get(i), data = ss))$coefficients
+       relapse_cox11<-cbind(relapse_cox11,as.data.frame(summary(coxph(Surv(OS.Time, OS) ~ get(i), data = ss))[8])[,c(3,4)])
+       relapse_coxs<-rbind(relapse_coxs,relapse_cox11)
+  }
+colnames(relapse_coxs)<-c("coef","HR","error","z","p","CIlow","CIhigh")
+row.names(relapse_coxs)<-colnames(relapse_s1)[1:14]
+#forestplot#
+relapse_coxs<-relapse_coxs[,c(2,5,6,7)]
+relapse_coxs<-relapse_coxs[which(relapse_coxs$p < 0.05),]
+relapse_coxs$gene<-row.names(relapse_coxs)
+forestplot(relapse_coxs, 
+                        mean = relapse_coxs$HR,
+                        lower = relapse_coxs$CIlow, 
+                        upper = relapse_coxs$CIhigh,
+                        zero = 1,
+                        xlog=FALSE,
+                        fn.ci_norm = fpDrawCircleCI, 
+                        boxsize = 0.1, 
+                        col=fpColors(line = "#69a794",   "#dd8047","#a5ab81","#d8b25c","#968c8c"
+                                                               box="#69a794"),    
+                        lty.ci = 7,   
+                        lwd.ci = 3,   
+                        ci.vertices.height = 0.10, 
+                        txt_gp = fpTxtGp(ticks = gpar(cex = 0.5), xlab = gpar(cex = 0.7), cex = 0.7),
+                        lineheight = "auto")
+
+ao<-intersect(row.names(relapse_s1),row.names(relapse_s1_train))
+relapse_s1_train<-relapse_s1[ao,]
+relapse_s1_train<-relapse_s1_train[,c(3,5,8,19)]
+colnames(relapse_s1_train)[4]<-"class"
+relapse_s1_train$class<-as.factor(as.numeric(relapse_s1_train$class)) 
+
+ao<-intersect(row.names(relapse_s1_t),row.names(relapse_s1_test))
+relapse_s1_test<-relapse_s1_t[ao,]
+relapse_s1_test<-relapse_s1_test[,c(3,5,8,19)]
+colnames(relapse_s1_test)[4]<-"class"
+relapse_s1_test$class<-as.factor(as.numeric(relapse_s1_test$class)) 
+
+
+##High-risk genes were used to construct the classifier
+
+#Random forest#
+set.seed(1234)
+err <- c()
+for(i in 1:(ncol(relapse_s1_train)-1)){
+  mtry_fit <- randomForest(as.factor(relapse_s1_train$class) ~ ., data = relapse_s1_train, mtry = i)
+  err <- c(err,mean(mtry_fit$err.rate))
+}
+which.min(err) 
+
+
+set.seed(1000)
+ntree_fit <- randomForest(relapse_s1_train$class ~ ., data = relapse_s1_train, mtry = 3, ntree = 3000)
+plot(ntree_fit)
+
+
+
+set.seed(2000)
+rf <- randomForest(relapse_s1_train$class ~ ., data = relapse_s1_train, mtry = 3, ntree = 2500, importance = TRUE, proximity = TRUE)
+pred <- predict(rf,newdata = relapse_s1_test)
+
+table(pred,relapse_s1_test$class)  
+
+
+rf_roc <- roc(relapse_s1_test$class,as.numeric(pred))
+plot(rf_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='随机森林模型ROC曲线')
+
+rf_roc <- multiclass.roc(relapse_s1_test$class,as.numeric(pred))
+auc(rf_roc)
+
+
+
+
+##K-nearest neighbor##
+library(class)
+library(caret)
+ao<-c()
+for (k in 1:10) {
+  knnresult <- knn(train = relapse_s1_train[,1:3],test = relapse_s1_test[,1:3],cl=relapse_s1_train$class,k = k)
+  table(relapse_s1_test$class,knnresult)
+  #knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+  knn_roc <- roc(relapse_s1_test$class,as.numeric(knnresult))
+  print(knn_roc)
+  #print(sum(diag(table(test4$class,knnresult)))/sum(table(test4$class,knnresult)))
+  ao[k]<-knn_roc$auc
+}
+
+max(ao)
+
+knnresult <- knn(train = relapse_s1_train[,1:3],test = relapse_s1_test[,1:3],cl=relapse_s1_train$class,k = which(ao == max(ao)))
+table(relapse_s1_test$class,knnresult)
+#knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+knn_roc <- roc(relapse_s1_test$class,as.numeric(knnresult))
+plot(knn_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='随机森林模型ROC曲线')
+
+
+
+##SVM##
+BiocManager::install("e1071", type="binary")
+library(e1071)
+library(pROC)
+library(backports)
+
+#svm(0.766)
+svmres <- svm(class~.,data = relapse_s1_train, type = 'C',kernel = 'radial')
+
+pre_svm <- predict(svmres,newdata = relapse_s1_test)
+obs_p_svm <-data.frame(prob=pre_svm,obs=relapse_s1_test$class)
+
+table(relapse_s1_test$class,pre_svm,dnn=c("真实值","预测值"))
+
+#svm_roc <- multiclass.roc(relapse_s1_test$class,as.numeric(pre_svm))#
+svm_roc <- roc(relapse_s1_test$class,as.numeric(pre_svm))#
+plot(svm_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='SVM模型ROC曲线 kernel = radial')
+
+
+immu<-read.table("immu.txt",header = T,sep = "\t",row.names = 1)
+ao<-intersect(row.names(obs_p_svm),row.names(immu))
+surv<-cbind(obs_p_svm[ao,],immu[ao,c(32,33)])
+fit1 <- survfit(Surv(OS.Time, OS) ~ prob,data = surv)
+ggsurvplot(fit1,risk.table=F,
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+#Enrichment analysis#
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(ggplot2)
+genes<-colnames(relapse_s1_test)[1:3]
+genes<-colnames(relapse_s1)[1:14]
+ego <- enrichGO(gene=genes,OrgDb = org.Hs.eg.db,keyType = "SYMBOL",ont = "BP",pvalueCutoff=0.05)
+#ego <- simplify(ego,cutoff=0.7,by="p.adjust",select_fun=min)  ##Elimination of redundancy
+head(ego@result)
+geo_plot<-cbind(as.data.frame(ego@result[2]),as.data.frame(ego@result[5]))
+geo_plot<-cbind(geo_plot,as.data.frame(ego@result[3]))
+geo_plot<-cbind(geo_plot,as.data.frame(ego@result[9]))
+geo_plot<-geo_plot[1:20,]
+ggplot(geo_plot,aes(GeneRatio,reorder(Description,Count))) +
+  geom_point(aes(size=Count,color=pvalue)) +
+  scale_size_continuous(range = c(6,10)) +
+  scale_color_gradient(low="#ED5227",high = "#f8b37f") +
+  theme(axis.text.x = element_text(size = 10),    ###主题
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+#enrichplot#
+library(DOSE)
+library(enrichplot)
+library(dplyr)
+library(clusterProfiler)
+
+
+emapplot(pairwise_termsim(ego),showCategory = 30)
+
+p<-emapplot(
+  pairwise_termsim(ego),
+  color = "p.adjust",
+  layout = "nicely",
+  node_scale = NULL,
+  line_scale = NULL,
+  min_edge = 0.2,
+  node_label_size = NULL,
+  cex_label_category = 1,
+  cex_category = NULL,
+  cex_line = 0.5
+)
+ggsave("relapse_3genes_pathway.pdf",p)
+
+emapplot(
+  pairwise_termsim(ego),
+  showCategory = 30,
+  color = "p.adjust",
+  layout = "nicely",
+  split = NULL,
+  pie = "equal",
+  legend_n = 5,
+  cex_category = NULL,
+  pie_scale = NULL,
+  cex_line = 1,
+  min_edge = 0.2,
+  cex_label_category = 1,
+  node_label_size = NULL
+)
+
+
+
+
+#Naive Bayes##
+
+library(caret)
+library(e1071)
+nb.model <- naiveBayes(class~.,data = relapse_s1_train)
+
+nb_predict <- predict(nb.model,newdata = relapse_s1_test)
+
+nb.table <- table(actual=relapse_s1_test$class,predict=nb_predict)
+nb_roc <- multiclass.roc(relapse_s1_test$class,as.numeric(nb_predict))#
+nb_roc <- roc(relapse_s1_test$class,as.numeric(nb_predict))#
+nb_roc 
+nb_ratio <- sum(diag(nb.table))/sum(nb.table)
+nb_ratio  #[1] 
+plot(nb_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='SVM模型ROC曲线 kernel = radial')
+
+
+
+######metastasis######
+#Similar to the recurrence method#
+transfer_s1<-read.csv("transfer_s1.csv",row.names = 1)
+clinical<-read.table("clinical.txt",sep = "\t",header = T,row.names = 1)
+clinical$category<-as.factor(clinical$category)
+ao<-intersect(row.names(clinical),row.names(transfer_s1))
+transfer_s1<-transfer_s1[ao,];clinical_s1<-clinical[ao,]
+transfer_s1$category<-clinical_s1$category;transfer_s1$stage<-clinical_s1$stage
+normal_t1<-transfer_s1[which(transfer_s1$category == 1),]
+transfer_s1<-transfer_s1[which(transfer_s1$category == 3),]
+
+#ENSG to SYMBOL#
+colnames(transfer_s1)[1:20]<-mapIds(org.Hs.eg.db,keys=colnames(transfer_s1)[1:20],column="SYMBOL",keytype="ENSEMBL",multiVals="first")
+colnames(normal_t1)[1:20]<-mapIds(org.Hs.eg.db,keys=colnames(normal_t1)[1:20],column="SYMBOL",keytype="ENSEMBL",multiVals="first")
+transfer_s1<-transfer_s1[,-which(is.na(colnames(transfer_s1)))]
+colnames(transfer_s1)<-gsub("-",".",colnames(transfer_s1))
+normal_t1<-normal_t1[,-which(is.na(colnames(normal_t1)))]
+colnames(normal_t1)<-gsub("-",".",colnames(normal_t1))
+
+#Extract 20% data as test set#
+sj<-sample(1:78,16) 
+transfer_s1_t<-transfer_s1[sj,]
+transfer_s1<-transfer_s1[-sj,]
+sj<-sample(1:2245,449) 
+transfer_s1<-rbind(transfer_s1,normal_t1[-sj,])
+normal_t1<-normal_t1[sj,]
+transfer_s1_t<-rbind(transfer_s1_t,normal_t1)
+
+#The cox risk model was constructed from the training set#
+transfer_cox1<-summary(coxph(Surv(OS.Time, OS) ~ KLHDC7B.DT, data = transfer_s1))$coefficients
+transfer_cox1<-cbind(transfer_cox1,as.data.frame(summary(coxph(Surv(OS.Time, OS) ~ KLHDC7B.DT, data = transfer_s1))[8])[,c(3,4)])
+for(i in colnames(transfer_s1)[2:18]){
+  transfer_cox11<-summary(coxph(Surv(OS.Time, OS) ~ get(i), data = transfer_s1))$coefficients
+  transfer_cox11<-cbind(transfer_cox11,as.data.frame(summary(coxph(Surv(OS.Time, OS) ~ get(i), data = transfer_s1))[8])[,c(3,4)])
+  transfer_cox1<-rbind(transfer_cox1,transfer_cox11)
+}
+colnames(transfer_cox1)<-c("coef","HR","error","z","p","CIlow","CIhigh")
+row.names(transfer_cox1)<-colnames(transfer_s1)[1:18]
+
+
+
+#forestplot#
+transfer_cox1<-transfer_cox1[,c(2,5,6,7)]
+transfer_cox1<-transfer_cox1[which(transfer_cox1$p < 0.05),]
+transfer_cox1$gene<-row.names(transfer_cox1)
+forestplot(transfer_cox1, 
+           mean = transfer_cox1$HR, 
+           lower = transfer_cox1$CIlow,  
+           upper = transfer_cox1$CIhigh,
+           zero = 1, 
+           xlog=FALSE, 
+           fn.ci_norm = fpDrawCircleCI, 
+           boxsize = 0.1,
+           col=fpColors(line = "#69a794",  "#dd8047","#a5ab81","#d8b25c","#968c8c"
+                        box="#69a794"),    
+           lty.ci = 7,  
+           lwd.ci = 3,   
+           ci.vertices.height = 0.10, 
+           txt_gp = fpTxtGp(ticks = gpar(cex = 0.5), xlab = gpar(cex = 0.7), cex = 0.7), 
+           lineheight = "auto")
+
+
+a<-c()
+for(i in 1:1000){
+  transfer_s1_train<-transfer_s1[,intersect(colnames(transfer_s1),row.names(transfer_cox1[which(transfer_cox1$HR > 1),]))]
+  transfer_s1_train$class<-transfer_s1$category
+  transfer_s1_train$class<-as.factor(as.numeric(transfer_s1_train$class))   
+  transfer_s1_test<-transfer_s1_t[,intersect(colnames(transfer_s1),row.names(transfer_cox1[which(transfer_cox1$HR > 1),]))]
+  ao<-intersect(row.names(transfer_s1_test),row.names(clinical))
+  transfer_s1_test<-cbind(transfer_s1_test,clinical[ao,]$category)
+  colnames(transfer_s1_test)[15]<-"class"
+  transfer_s1_test$class<-as.factor(as.numeric(transfer_s1_test$class))
+  
+  
+  transfer_s1_train<-transfer_s1_train[c(1:62,sample(63:1858,62)),]
+  transfer_s1_test<-transfer_s1_test[c(1:16,sample(17:465,17)),]
+  
+  svmres <- svm(class~.,data = transfer_s1_train, type = 'C',kernel = 'radial')
+  pre_svm <- predict(svmres,newdata = transfer_s1_test)
+  obs_p_svm <-data.frame(prob=pre_svm,obs=transfer_s1_test$class)
+  svm_roc <- roc(transfer_s1_test$class,as.numeric(pre_svm))#
+  a[i]<-svm_roc$auc
+  write.csv(transfer_s1_test,paste0("D://danni//1//结果图//转录组//分类器//ss//transfer_s1_test_",svm_roc$auc,".csv"))
+  write.csv(transfer_s1_train,paste0("D://danni//1//结果图//转录组//分类器//ss//transfer_s1_train_",svm_roc$auc,".csv"))
+}
+max(a)
+
+transfer_s1_test<-read.csv("D://danni//1//结果图//转录组//分类器//transfer//0.818//transfer_s1_test.csv",row.names = 1)
+transfer_s1_train<-read.csv("D://danni//1//结果图//转录组//分类器//transfer//0.818//transfer_s1_train.csv",row.names = 1)
+
+
+ao<-intersect(row.names(transfer_s1),row.names(transfer_s1_train))
+ss<-transfer_s1[ao,]
+transfer_coxs<-summary(coxph(Surv(OS.Time, OS) ~ KLHDC7B.DT, data = ss))$coefficients
+transfer_coxs<-cbind(transfer_coxs,as.data.frame(summary(coxph(Surv(OS.Time, OS) ~ KLHDC7B.DT, data = ss))[8])[,c(3,4)])
+for(i in colnames(ss)[2:18]){
+  transfer_cox11<-summary(coxph(Surv(OS.Time, OS) ~ get(i), data = ss))$coefficients
+  transfer_cox11<-cbind(transfer_cox11,as.data.frame(summary(coxph(Surv(OS.Time, OS) ~ get(i), data = ss))[8])[,c(3,4)])
+  transfer_coxs<-rbind(transfer_coxs,transfer_cox11)
+}
+colnames(transfer_coxs)<-c("coef","HR","error","z","p","CIlow","CIhigh")
+row.names(transfer_coxs)<-colnames(transfer_s1)[1:18]
+#forestplot#
+transfer_coxs<-transfer_coxs[,c(2,5,6,7)]
+transfer_coxs<-transfer_coxs[which(transfer_coxs$p < 0.05),]
+transfer_coxs$gene<-row.names(transfer_coxs)
+forestplot(transfer_coxs,
+           mean = transfer_coxs$HR, 
+           lower = transfer_coxs$CIlow, 
+           upper = transfer_coxs$CIhigh,
+           zero = 1, 
+           xlog=FALSE,
+           fn.ci_norm = fpDrawCircleCI,
+           boxsize = 0.1, 
+           col=fpColors(line = "#69a794",   "#dd8047","#a5ab81","#d8b25c","#968c8c"
+                        box="#69a794"),    
+           lty.ci = 7,  
+           lwd.ci = 3,   
+           ci.vertices.height = 0.10, 
+           txt_gp = fpTxtGp(ticks = gpar(cex = 0.5), xlab = gpar(cex = 0.7), cex = 0.7), 
+           lineheight = "auto")
+
+ao<-intersect(row.names(transfer_s1),row.names(transfer_s1_train))
+transfer_s1_train<-transfer_s1[ao,]
+transfer_s1_train<-transfer_s1_train[,c(1,2,3,4,7,8,11,15,16,23)]
+colnames(transfer_s1_train)[10]<-"class"
+transfer_s1_train$class<-as.factor(as.numeric(transfer_s1_train$class)) 
+
+ao<-intersect(row.names(transfer_s1_t),row.names(transfer_s1_test))
+transfer_s1_test<-transfer_s1_t[ao,]
+transfer_s1_test<-transfer_s1_test[,c(1,2,3,4,7,8,11,15,16,23)]
+colnames(transfer_s1_test)[10]<-"class"
+transfer_s1_test$class<-as.factor(as.numeric(transfer_s1_test$class)) 
+
+#Random forest#
+set.seed(1234)
+err <- c()
+for(i in 1:(ncol(transfer_s1_train)-1)){
+  mtry_fit <- randomForest(as.factor(transfer_s1_train$class) ~ ., data = transfer_s1_train, mtry = i)
+  err <- c(err,mean(mtry_fit$err.rate))
+}
+which.min(err) 
+
+set.seed(1000)
+ntree_fit <- randomForest(transfer_s1_train$class ~ ., data = transfer_s1_train, mtry = 3, ntree = 3000)
+plot(ntree_fit) 
+
+
+
+set.seed(2000)
+rf <- randomForest(transfer_s1_train$class ~ ., data = transfer_s1_train, mtry = 3, ntree = 1500, importance = TRUE, proximity = TRUE)
+pred <- predict(rf,newdata = transfer_s1_test)
+
+table(pred,transfer_s1_test$class)  
+
+
+rf_roc <- roc(transfer_s1_test$class,as.numeric(pred))
+plot(rf_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='随机森林模型ROC曲线')
+
+
+
+
+##K-nearest neighbor##
+library(class)
+library(caret)
+ao<-c()
+for (k in 1:10) {
+  knnresult <- knn(train = transfer_s1_train[,1:3],test = transfer_s1_test[,1:3],cl=transfer_s1_train$class,k = k)
+  table(transfer_s1_test$class,knnresult)
+  #knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+  knn_roc <- roc(transfer_s1_test$class,as.numeric(knnresult))
+  print(knn_roc)
+  #print(sum(diag(table(test4$class,knnresult)))/sum(table(test4$class,knnresult)))
+  ao[k]<-knn_roc$auc
+}
+
+max(ao)
+
+knnresult <- knn(train = transfer_s1_train[,1:3],test = transfer_s1_test[,1:3],cl=transfer_s1_train$class,k = which(ao == max(ao)))
+table(transfer_s1_test$class,knnresult)
+#knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+knn_roc <- roc(transfer_s1_test$class,as.numeric(knnresult))
+plot(knn_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='随机森林模型ROC曲线')
+
+
+
+##SVM##
+BiocManager::install("e1071", type="binary")
+library(e1071)
+library(pROC)
+library(backports)
+
+#svm
+svmres <- svm(class~.,data = transfer_s1_train, type = 'C',kernel = 'radial')
+
+pre_svm <- predict(svmres,newdata = transfer_s1_test)
+obs_p_svm <-data.frame(prob=pre_svm,obs=transfer_s1_test$class)
+
+table(transfer_s1_test$class,pre_svm,dnn=c("真实值","预测值"))
+
+#svm_roc <- multiclass.roc(transfer_s1_test$class,as.numeric(pre_svm))#
+svm_roc <- roc(transfer_s1_test$class,as.numeric(pre_svm))#
+plot(svm_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='SVM模型ROC曲线 kernel = radial')
+
+
+
+immu<-read.table("immu.txt",header = T,sep = "\t",row.names = 1)
+ao<-intersect(row.names(obs_p_svm),row.names(immu))
+surv<-cbind(obs_p_svm[ao,],immu[ao,c(32,33)])
+fit1 <- survfit(Surv(OS.Time, OS) ~ prob,data = surv)
+ggsurvplot(fit1,risk.table=F,
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+#Go Enrichment analysis#
+library(clusterProfiler)
+library(org.Hs.eg.db)
+genes<-colnames(transfer_s1_test)[1:9]
+genes<-colnames(transfer_s1)[1:18]
+genes<-gsub("\\.","-",genes)
+genes1<-c("KLHDC7B","ANKRD22","RAB27B","LIPM")
+#genes2<-genes[5:9]
+ego <- enrichGO(gene=genes,OrgDb = org.Hs.eg.db,keyType = "SYMBOL",ont = "BP",pvalueCutoff=0.05)
+head(ego@result)
+
+geo_plot<-cbind(as.data.frame(ego@result[2]),as.data.frame(ego@result[5]))
+geo_plot<-cbind(geo_plot,as.data.frame(ego@result[3]))
+geo_plot<-cbind(geo_plot,as.data.frame(ego@result[9]))
+geo_plot<-geo_plot[1:20,]
+ggplot(geo_plot,aes(GeneRatio,reorder(Description,Count))) +
+  geom_point(aes(size=Count,color=pvalue)) +
+  scale_size_continuous(range = c(6,10)) +
+  scale_color_gradient(low="#EE3F4D",high = "#e6d2d5") +
+  theme(axis.text.x = element_text(size = 10),  
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+genes<-c(colnames(relapse_s1_test)[1:3],colnames(transfer_s1_test)[1:9])
+genes<-gsub("\\.","-",genes)
+ego <- enrichGO(gene=genes,OrgDb = org.Hs.eg.db,keyType = "SYMBOL",ont = "BP",pvalueCutoff=0.05)
+head(ego@result)
+
+geo_plot<-cbind(as.data.frame(ego@result[2]),as.data.frame(ego@result[5]))
+geo_plot<-cbind(geo_plot,as.data.frame(ego@result[3]))
+geo_plot<-cbind(geo_plot,as.data.frame(ego@result[9]))
+geo_plot<-geo_plot[1:20,]
+ggplot(geo_plot,aes(GeneRatio,reorder(Description,Count))) +
+  geom_point(aes(size=Count,color=pvalue)) +
+  scale_size_continuous(range = c(6,10)) +
+  scale_color_gradient(low="#681752",high = "#c08eaf") +
+  theme(axis.text.x = element_text(size = 10),
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+#KEGG Enrichment analysis#
+f<-c("ENSG00000272666","ENSG00000152766","ENSG00000041353","ENSG00000173239",
+     "ENSG00000211966","ENSG00000211679","ENSG00000211895","ENSG00000254709",
+     "ENSG00000239951")   
+EG2Ensembl=toTable(org.Hs.egENSEMBL)
+geneLists=data.frame(ensembl_id=f)
+results=merge(geneLists,EG2Ensembl,by='ensembl_id',all.x=T)
+id=na.omit(results$gene_id)
+
+
+
+ekk <- enrichKEGG(gene= id,organism  = 'hsa', qvalueCutoff = 0.05)
+ekk@result
+
+
+#enrichplot#
+library(DOSE)
+library(enrichplot)
+library(dplyr)
+library(clusterProfiler)
+
+genes<-c(genes1,genes2)
+
+gene_symbol <- bitr(genes, fromType="SYMBOL", toType=c("ENSEMBL", "ENTREZID"), OrgDb="org.Hs.eg.db")
+gene_symbol
+
+
+ego <- enrichGO(genes2,OrgDb = org.Hs.eg.db,keyType = "SYMBOL",ont = "BP",pvalueCutoff=0.05)
+
+
+ego <- enrichGO(genes1,OrgDb = org.Hs.eg.db,keyType = "SYMBOL",ont = "BP",pvalueCutoff=0.05)
+
+
+p<-emapplot(
+  pairwise_termsim(ego),
+  showCategory = 20,
+  color = "p.adjust",
+  layout = "nicely",
+  node_scale = NULL,
+  line_scale = NULL,
+  min_edge = 0.2,
+  node_label_size = NULL,
+  cex_label_category = 1,
+  cex_category = NULL,
+  cex_line = 0.5
+)
+ggsave("transfer_5,9genes_pathway.pdf",p)
+
+
+#Naive bayes##
+
+library(caret)
+library(e1071)
+nb.model <- naiveBayes(class~.,data = transfer_s1_train)
+
+nb_predict <- predict(nb.model,newdata = transfer_s1_test)
+
+nb.table <- table(actual=transfer_s1_test$class,predict=nb_predict)
+nb_roc <- multiclass.roc(transfer_s1_test$class,as.numeric(nb_predict))#
+nb_roc <- roc(transfer_s1_test$class,as.numeric(nb_predict))#
+nb_roc 
+nb_ratio <- sum(diag(nb.table))/sum(nb.table)
+nb_ratio  #[1] 
+plot(nb_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='SVM模型ROC曲线 kernel = radial')
+
+
+
+
+
+##External validation (GEO)##
+#Download GEO data as external validation data#
+#From which we extracted the expression data of the genes we identified, example: GSE16581.xls#
+#These data serve as test sets to verify whether the identified genes can be used as biomarkers to predict early recurrence and metastasis#
+
+
+
+####GSE31210####
+
+setwd("/pub6/siyu/hdn/yanzheng")
+#Select the gene we want#
+library(GEOquery)
+GPL<-getGEO("GPL570",destdir = ".")
+g1<-Table(GPL)
+exp<-read.table("GSE31210_series_matrix.txt",header = T,sep = "\t",row.names = 1)
+exp<-merge(exp,g1,by  = "ID" ,all.x = T) 
+exp<-exp[,c(2:247,257)]  
+dim(exp)
+exp<-exp[-which(duplicated(exp[,247])),]
+row.names(exp)<-exp[,247];exp<-exp[,-247]
+exp<-t(exp)
+
+clinical<-read.table("GSE31210.txt",header = T,sep = "\t",row.names = 1)
+ao<-intersect(row.names(exp),row.names(clinical))
+exp<-exp[ao,];clinical<-clinical[ao,]
+which(colnames(exp) == "S100P")
+which(colnames(exp) == "BPIFB1")
+which(colnames(exp) == "SLC6A14")
+exp<-exp[,c(8300,18919,16107)]
+
+data<-cbind(exp,clinical[,c(1,2,4)])
+write.csv(data,"yanzheng.csv")
+
+
+
+library(clusterProfiler)
+library(org.Hs.eg.db)
+gene_symbol <- bitr(genes, fromType="SYMBOL", toType=c("ENSEMBL", "ENTREZID"), OrgDb="org.Hs.eg.db")
+gene_symbol
+
+
+
+rm(list = ls(all = T))
+setwd("D://danni//1//结果图//转录组//分类器//外部验证")
+train<-read.csv("D://danni//1//结果图//转录组//分类器//relapse//0.766（2）//relapse_s1_train_0.859375.csv",row.names = 1)
+train<-train[,c(2,3,4,6)]
+test<-read.csv("yanzheng.csv",row.names = 1)
+test[,1:3]<-scale(test[,1:3]) 
+
+library(e1071)
+library(pROC)
+library(backports)
+
+svmres <- svm(class~.,data = train, type = 'C',kernel = 'radial')
+pre_svm <- predict(svmres,newdata = test[,1:3])
+summary(pre_svm)
+test<-cbind(test,as.data.frame(pre_svm))
+
+library(survival)
+library(ggplot2)
+library(ggpubr)
+library(survminer)
+fit1 <- survfit(Surv(time, statue) ~ pre_svm,data = test)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#93b5cf","#eea08c"),
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+
+
+####GSE37745####
+
+exp<-read.table("GSE37745_series_matrix.txt",header = T,sep = "\t",row.names = 1)
+which(row.names(exp) == "204351_at") #S100P
+which(row.names(exp) == "226067_at") #BPIFB1
+which(row.names(exp) == "219795_at") #SLC6A14
+exp<-exp[c(13799,35324,29080),]
+exp<-t(exp)
+write.csv(exp,"GSE37745.csv")
+
+
+
+
+
+test<-read.csv("GSE37745.csv",row.names = 1)
+test[,1:3]<-log2(test[,1:3]+1) 
+
+#test[,1:3]<-scale(test[,1:3])
+#test[,1:3]<-sqrt(test[,1:3])
+
+
+
+
+##K-nearest neighbor##
+library(class)
+library(caret)
+library(pROC)
+ao<-c()
+for (k in 1:10) {
+  knnresult <- knn(train = relapse_s1_train[,1:3],test = test[,1:3],cl=relapse_s1_train$class,k = k)
+  table(test$recurrence,knnresult)
+  #knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+  knn_roc <- roc(test$recurrence,as.numeric(knnresult))
+  print(knn_roc)
+  #print(sum(diag(table(test4$class,knnresult)))/sum(table(test4$class,knnresult)))
+  ao[k]<-knn_roc$auc
+}
+
+max(ao)
+
+knnresult <- knn(train = relapse_s1_train[,1:3],test = test[,1:3],cl=relapse_s1_train$class,k = which(ao == max(ao)))
+table(test$recurrence,knnresult)
+#knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+knn_roc <- roc(test$recurrence,as.numeric(knnresult))
+plot(knn_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='随机森林模型ROC曲线')
+roc(test$recurrence,as.numeric(knnresult),plot = TRUE , print.thres = TRUE,print.auc = TRUE)
+
+test<-cbind(test,as.data.frame(knnresult))
+
+
+
+
+
+fit1 <- survfit(Surv(days.to.determined.death.status, dead) ~ knnresult,data = test)
+ggsurvplot(fit1,risk.table=F,
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+
+
+####GSE56699####
+
+exp<-read.table("GSE56699_series_matrix.txt",header = T,sep = "\t",row.names = 1)
+which(row.names(exp) == "ILMN_1801216") #S100P
+which(row.names(exp) == "ILMN_1733904") #BPIFB1
+which(row.names(exp) == "ILMN_1706813") #SLC6A14
+exp<-exp[c(18022,10341,7132),]
+exp<-t(exp)
+write.csv(exp,"GSE56699.csv")
+
+
+library(limma)
+library(class)
+library(caret)
+
+gene_symbol <- bitr(genes, fromType="SYMBOL", toType=c("ENSEMBL", "ENTREZID","GENENAME"), OrgDb="org.Hs.eg.db")
+gene_symbol
+
+test<-read.csv("GSE56699.csv",row.names = 1)
+
+test[,1:3]<-log2(test[,1:3]+1)
+test[,1:3]<-scale(test[,1:3])
+test[,1:3]<-sqrt(test[,1:3])
+
+
+
+ao<-c()
+for (k in 1:10) {
+  knnresult <- knn(train = relapse_s1_train[,1:3],test = test[,1:3],cl=relapse_s1_train$class,k = k)
+  table(test$class,knnresult)
+  #knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+  knn_roc <- roc(test$class,as.numeric(knnresult))
+  print(knn_roc)
+  #print(sum(diag(table(test4$class,knnresult)))/sum(table(test4$class,knnresult)))
+  ao[k]<-knn_roc$auc
+}
+
+max(ao)
+
+knnresult <- knn(train = relapse_s1_train[,1:3],test = test[,1:3],cl=relapse_s1_train$class,k = which(ao == max(ao)))
+table(test$class,knnresult)
+#knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+knn_roc <- roc(test$class,as.numeric(knnresult))
+plot(knn_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='随机森林模型ROC曲线')
+
+
+test<-cbind(test,as.data.frame(knnresult))
+
+
+
+
+
+fit1 <- survfit(Surv(time, vital_status) ~ knnresult,data = test)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#93b5cf","#eea08c"), 
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+
+
+
+
+
+
+svmres <- svm(class~.,data = train, type = 'C',kernel = 'radial')
+pre_svm <- predict(svmres,newdata = test[,1:3])
+summary(pre_svm)
+test<-cbind(test,as.data.frame(pre_svm))
+
+fit1 <- survfit(Surv(time, vital_status) ~ pre_svm,data = test)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#93b5cf","#eea08c"),
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE)  
+
+
+
+library(caret)
+library(e1071)
+nb.model <- naiveBayes(class~.,data = relapse_s1_train)
+
+nb_predict <- predict(nb.model,newdata = test)
+summary(nb_predict)
+test<-cbind(test,as.data.frame(nb_predict))
+
+fit1 <- survfit(Surv(time, vital_status) ~ nb_predict,data = test)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#93b5cf","#eea08c"), 
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+
+
+
+####GSE44295####
+
+
+library(class)
+library(caret)
+library(e1071)
+library(pROC)
+library(backports)
+library(survival)
+library(ggplot2)
+library(ggpubr)
+library(survminer)
+
+
+test<-read.csv("GSE44295.txt",header = T,sep = "\t",row.names = 1)
+
+
+test[,1:2]<-scale(test[,1:2])
+
+
+
+ao<-c()
+for (k in 1:10) {
+  knnresult <- knn(train = transfer_s1_train[,2:3],test = test[,1:2],cl=transfer_s1_train$class,k = k)
+  table(test$class,knnresult)
+  #knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+  knn_roc <- roc(test$class,as.numeric(knnresult))
+  print(knn_roc)
+  #print(sum(diag(table(test4$class,knnresult)))/sum(table(test4$class,knnresult)))
+  ao[k]<-knn_roc$auc
+}
+
+max(ao)
+
+knnresult <- knn(train = transfer_s1_train[,2:3],test = test[,1:2],cl=transfer_s1_train$class,k = which(ao == max(ao)))
+table(test$class,knnresult)
+#knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+knn_roc <- roc(test$class,as.numeric(knnresult))
+plot(knn_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='随机森林模型ROC曲线')
+
+
+test<-cbind(test,as.data.frame(knnresult))
+
+
+
+
+fit1 <- survfit(Surv(time, vital_status) ~ knnresult,data = test)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#91b1c9","#e77c8e"),
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+
+
+
+####GSE12428####
+
+
+
+library(class)
+library(caret)
+library(e1071)
+library(pROC)
+library(backports)
+library(survival)
+library(ggplot2)
+library(ggpubr)
+library(survminer)
+
+
+test<-read.csv("GSE12428.txt",header = T,sep = "\t",row.names = 1)
+
+
+test[,1:3]<-log2(test[,1:3]+1)
+test[,1:3]<-scale(test[,1:3])
+test[,1:3]<-sqrt(test[,1:3])
+
+
+
+ao<-c()
+for (k in 1:10) {
+  knnresult <- knn(train = transfer_s1_train[,c(2,3,7)],test = test[,1:3],cl=transfer_s1_train$class,k = k)
+  table(test$class,knnresult)
+  #knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+  knn_roc <- roc(test$class,as.numeric(knnresult))
+  print(knn_roc)
+  #print(sum(diag(table(test4$class,knnresult)))/sum(table(test4$class,knnresult)))
+  ao[k]<-knn_roc$auc
+}
+
+max(ao)
+
+knnresult <- knn(train = transfer_s1_train[,c(2,3,7)],test = test[,1:3],cl=transfer_s1_train$class,k = which(ao == max(ao)))
+table(test$class,knnresult)
+#knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+knn_roc <- roc(test$class,as.numeric(knnresult))
+plot(knn_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='随机森林模型ROC曲线')
+
+
+test<-cbind(test,as.data.frame(knnresult))
+
+
+
+
+
+fit1 <- survfit(Surv(time, vital_status) ~ knnresult,data = test)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#91b1c9","#e77c8e"),
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+
+
+
+
+
+test<-read.csv("GSE12428.txt",header = T,sep = "\t",row.names = 1)
+
+
+test[,1:3]<-log2(test[,1:3]+1)
+test[,1:3]<-scale(test[,1:3])
+test[,1:3]<-sqrt(test[,1:3])
+
+
+svmres <- svm(class~.,data = transfer_s1_train[,c(2,3,7,10)], type = 'C',kernel = 'radial')
+
+pre_svm <- predict(svmres,newdata = test[,1:3])
+obs_p_svm <-data.frame(prob=pre_svm,obs=test$class)
+
+table(test$class,pre_svm,dnn=c("真实值","预测值"))
+
+#svm_roc <- multiclass.roc(transfer_s1_test$class,as.numeric(pre_svm))#
+svm_roc <- roc(test$class,as.numeric(pre_svm))
+svm_roc
+plot(svm_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='SVM模型ROC曲线 kernel = radial')
+
+test<-cbind(test,as.data.frame(pre_svm))
+
+fit1 <- survfit(Surv(time, vital_status) ~ pre_svm,data = test)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#91b1c9","#e77c8e"),
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+
+
+test<-read.csv("GSE12428.txt",header = T,sep = "\t",row.names = 1)
+
+
+test[,1:3]<-log2(test[,1:3]+1)
+test[,1:3]<-scale(test[,1:3])
+test[,1:3]<-sqrt(test[,1:3])
+
+nb.model <- naiveBayes(class~.,data = transfer_s1_train[,c(2,3,7,10)])
+
+nb_predict <- predict(nb.model,newdata = test[,1:3])
+
+nb.table <- table(actual=test$class,predict=nb_predict)
+nb.table
+nb_roc <- multiclass.roc(test$class,as.numeric(nb_predict))#
+nb_roc <- roc(test$class,as.numeric(nb_predict))#
+nb_roc 
+nb_ratio <- sum(diag(nb.table))/sum(nb.table)
+nb_ratio  #[1] 
+plot(nb_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='朴素贝叶斯')
+
+test<-cbind(test,as.data.frame(nb_predict))
+
+fit1 <- survfit(Surv(time, vital_status) ~ nb_predict,data = test)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#91b1c9","#e77c8e"),
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE)  
+
+####GSE20685####
+library(limma)
+library(class)
+library(caret)
+library(pROC)
+
+test<-read.csv("GSE20685.txt",header = T,sep = "\t",row.names = 1)
+
+ao<-c()
+for (k in 1:10) {
+  knnresult <- knn(train = transfer_s1_train[,c(2,3,7,8)],test = test[,1:4],cl=transfer_s1_train$class,k = k)
+  table(test$class,knnresult)
+  #knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+  knn_roc <- roc(test$class,as.numeric(knnresult))
+  #print(sum(diag(table(test4$class,knnresult)))/sum(table(test4$class,knnresult)))
+  ao[k]<-knn_roc$auc
+}
+max(ao)
+
+knnresult <- knn(train = transfer_s1_train[,c(2,3,7,8)],test = test[,1:4],cl=transfer_s1_train$class,k = which(ao == max(ao)))
+table(test$class,knnresult)
+#knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+knn_roc <- roc(test$class,as.numeric(knnresult))
+plot(knn_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='随机森林模型ROC曲线')
+
+test<-cbind(test,as.data.frame(knnresult))
+
+fit1 <- survfit(Surv(time, vital_status) ~ knnresult,data = test)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#93b5cf","#eea08c"), 
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+
+
+#######################Mutation##############################
+#Fisher exact test was used to identify stage I-specific mutated genes associated with recurrence and metastasis#
+#Genes were screened again by pathway#
+#Classifiers were constructed to verify whether the mutations of the identified genes affected early recurrence and metastasis#
+
+setwd("/pub6/siyu/hdn/mutation")
+#Rows represent samples, columns represent genes, and data is whether the gene is mutated in the corresponding sample#
+#1 indicates a mutation and 0 indicates no mutation#
+
+mutation <- read.table("/pub6/siyu/mutation/pancancer-1.txt",sep = "\t",header = T,row.names = 1)
+for (mu in 2:10){
+  mutation1 <- read.table(paste0("/pub6/siyu/mutation/pancancer-",mu,".txt"),sep = "\t",header = T,row.names = 1)
+  mutation<-rbind(mutation,mutation1)
+  print(mu)
+}
+colnames(mutation)<-gsub("\\.","-",colnames(mutation))
+
+clinical<-read.table("clinical.txt",sep = "\t",header = T,row.names = 1)
+clinical$category<-as.factor(clinical$category)
+
+
+
+#Data were separated according to cancer stage and recurrence and metastasis status#
+m10<-clinical[which(clinical$category == 10),]
+m12<-clinical[which(clinical$category == 12),]
+ao<-c()
+for(i in 1:length(row.names(m10))){
+  for(j in 1:length(colnames(mutation))){
+    if(row.names(m10)[i] == colnames(mutation)[j]){
+      ao[j]<-j
+    }
+  }
+}
+ao<-na.omit(ao)
+length(ao)
+mutation10<-mutation[,ao]
+
+ao<-c()
+for(i in 1:length(row.names(m12))){
+  for(j in 1:length(colnames(mutation))){
+    if(row.names(m12)[i] == colnames(mutation)[j]){
+      ao[j]<-j
+    }
+  }
+}
+ao<-na.omit(ao)
+length(ao)
+mutation12<-mutation[,ao]
+
+#Twelve sets of gene mutation data were output, One set of data is shown in mutation.csv#
+
+
+
+
+
+####Calculating mutation frequency####
+mu<-as.data.frame(apply(mutation1,1,mean))
+mu<-cbind(mu,as.data.frame(apply(mutation2,1,mean)))
+mu<-cbind(mu,as.data.frame(apply(mutation3,1,mean)))
+mu<-cbind(mu,as.data.frame(apply(mutation4,1,mean)))
+mu<-cbind(mu,as.data.frame(apply(mutation5,1,mean)))
+mu<-cbind(mu,as.data.frame(apply(mutation6,1,mean)))
+mu<-cbind(mu,as.data.frame(apply(mutation7,1,mean)))
+mu<-cbind(mu,as.data.frame(apply(mutation8,1,mean)))
+mu<-cbind(mu,as.data.frame(apply(mutation9,1,mean)))
+mu<-cbind(mu,as.data.frame(apply(mutation10,1,mean)))
+mu<-cbind(mu,as.data.frame(apply(mutation11,1,mean)))
+mu<-cbind(mu,as.data.frame(apply(mutation12,1,mean)))
+
+
+
+
+
+#Fisher's exact test was used to verify whether genes were associated with recurrence and metastasis#
+fp<-function(x1,x2){
+  ao<-c()
+  for(i in 1:nrow(x1)){
+    a<-length(which(x1[i,] == "1"))
+    b<-length(which(x1[i,] == "0"))
+    c<-length(which(x2[i,] == "1"))
+    d<-length(which(x2[i,] == "0"))
+    data<-matrix(c(b,d,a,c),ncol = 2,nrow =2)
+    ao[i]<-fisher.test(data)$p
+    print(length(ao))
+  }
+  ao  
+}
+
+s1r<-fp(mutation1,mutation2)
+write.csv(as.data.frame(s1r),"relapse1.csv")
+s2r<-fp(mutation4,mutation5)
+write.csv(as.data.frame(s2r),"relapse2.csv")
+s3r<-fp(mutation7,mutation8)
+write.csv(as.data.frame(s3r),"relapse3.csv")
+s45r<-fp(mutation10,mutation11)
+write.csv(as.data.frame(s45r),"relapse45.csv")
+
+s1t<-fp(mutation1,mutation3)
+write.csv(as.data.frame(s1t),"transfer1.csv")
+s2t<-fp(mutation4,mutation6)
+write.csv(as.data.frame(s2t),"transfer2.csv")
+s3t<-fp(mutation7,mutation9)
+write.csv(as.data.frame(s3t),"transfer3.csv")
+s45t<-fp(mutation10,mutation12)
+write.csv(as.data.frame(s45t),"transfer45.csv")
+
+
+#stage3+4+5#
+normal345<-cbind(mutation7,mutation10)
+r1<-normal345[c(1985,16714,17650),]
+t1<-normal345[c(1030,8414,8501,8552,8564,8573,9379,10146,15011),]
+relapse345<-cbind(mutation8,mutation11)
+relapse345<-relapse345[c(1985,16714,17650),]
+transfer345<-cbind(mutation9,mutation12)
+transfer345<-transfer345[c(1030,8414,8501,8552,8564,8573,9379,10146,15011),]
+
+s345r<-fp(r1,relapse345) 
+s345t<-fp(t1,transfer345) 
+
+
+
+
+
+
+rm(list = ls(all = TRUE))
+setwd("D://danni//1//结果图//突变")
+library(ggplot2)
+library(pheatmap)
+
+relapse<-read.table("mu_relapse突变频率.txt",header = T,sep = "\t",row.names = 1)
+transfer<-read.table("mu_transfer突变频率.txt",header = T,sep = "\t",row.names = 1)
+
+
+relapse_p<-read.table("relapse_p.txt",header = T,sep = "\t",row.names = 1)
+transfer_p<-read.table("transfer_p.txt",header = T,sep = "\t",row.names = 1)
+
+
+gene1<-read.table("1genes.txt",header = T,sep = "\t",row.names = 1)
+gene27<-read.table("27genes_p.txt",header = T,sep = "\t",row.names = 1)
+
+
+
+#According to the p value, the stage I specific gene mutations related to recurrence and metastasis were screened#
+
+gene1<-gene1-0.04   
+pheatmap(gene1,cluster_col = F,cluster_row = F,show_rownames = T,
+         color = c(colorRampPalette(colors = c("#ed5126","#d2d97a"))(floor(abs(min(gene2))/0.001)),colorRampPalette(colors = c("#c6dfc8","#61ac85"))(floor(abs(max(gene2))/0.001))),
+         breaks = c(seq(min(gene2),-0.001,by=0.001),seq(0,max(gene2),by=0.001)),
+         angle_col = 0 
+)
+
+gene27<-gene27-0.05 
+pheatmap(gene27,cluster_col = F,cluster_row = F,show_rownames = T,
+         color = c(colorRampPalette(colors = c("#ed5126","#d2d97a"))(floor(abs(min(gene27))/0.0001)),colorRampPalette(colors = c("#c6dfc8","#61ac85"))(floor(abs(max(gene27))/0.0001))),
+         breaks = c(seq(min(gene27),-0.0001,by=0.0001),seq(0,max(gene27),by=0.0001)),
+         angle_col = 0 
+)
+
+
+
+##Enrichment analysis##
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(ggplot2)
+genes<-row.names(gene27)
+ego <- enrichGO(gene=genes,OrgDb = org.Hs.eg.db,keyType = "SYMBOL",ont = "BP",pvalueCutoff=0.05)
+#ego <- simplify(ego,cutoff=0.05,by="p.adjust",select_fun=min)  
+head(ego@result)
+geo_plot<-cbind(as.data.frame(ego@result[2]),as.data.frame(ego@result[5]))
+geo_plot<-cbind(geo_plot,as.data.frame(ego@result[3]))
+geo_plot<-cbind(geo_plot,as.data.frame(ego@result[9]))
+geo_plot<-geo_plot[1:25,]
+ggplot(geo_plot,aes(GeneRatio,reorder(Description,Count))) +
+  geom_point(aes(size=Count,color=pvalue)) +
+  scale_size_continuous(range = c(6,10)) +
+  scale_color_gradient(low="#681752",high = "#c08eaf") +
+  theme(axis.text.x = element_text(size = 10),   
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+#enrichplot#
+library(DOSE)
+library(enrichplot)
+library(dplyr)
+library(clusterProfiler)
+
+
+
+emapplot(
+  pairwise_termsim(ego),
+  showCategory = 25,
+  color = "p.adjust",
+  layout = "nicely",
+  node_scale = NULL,
+  line_scale = NULL,
+  min_edge = 0.2,
+  node_label_size = NULL,
+  cex_label_category = 1,
+  cex_category = NULL,
+  cex_line = 0.5
+)
+
+
+#kegg enrichment analysis#
+id <- bitr(genes, fromType="SYMBOL", toType=c( "ENTREZID"), OrgDb="org.Hs.eg.db")
+id<-id$ENTREZID
+
+
+ekk <- enrichKEGG(gene= id,organism  = 'hsa', qvalueCutoff = 0.05)
+ekk@result
+
+emapplot(
+  pairwise_termsim(ekk),
+  showCategory = 25,
+  color = "p.adjust",
+  layout = "nicely",
+  node_scale = NULL,
+  line_scale = NULL,
+  min_edge = 0.2,
+  node_label_size = NULL,
+  cex_label_category = 1,
+  cex_category = NULL,
+  cex_line = 0.5
+)
+
+
+
+
+
+
+library(ggplot2)
+library(ggsignif)
+library(ggpubr)
+mutation1<-read.csv("D://danni//1//结果图//突变//数据//mutation1.csv",row.names = 1)
+mutation3<-read.csv("D://danni//1//结果图//突变//数据//mutation3.csv",row.names = 1)
+
+
+##Mutation score matrix was constructed. If the gene was mutated in one sample, the score was added by one##
+mutation1<-t(mutation1);mutation3<-t(mutation3)
+m1<-apply(mutation1,1,sum);m3<-apply(mutation3,1,sum)
+m1<-as.data.frame(m1);m1$transfer<-0;colnames(m1)[1]<-"score"
+m3<-as.data.frame(m3);m3$transfer<-1;colnames(m3)[1]<-"score"
+score<-rbind(m1,m3)
+
+
+score<-read.csv("score.csv",row.names = 1)
+score$sample<-as.factor(score$sample);score$transfer<-as.factor(score$transfer)
+ggplot(score,aes(x=as.factor(gene),fill =transfer)) + 
+  geom_bar(na.rm = T,position = "fill") +
+  scale_fill_manual(values = c("#92bba1","#de9952")) +
+  #coord_flip()+
+  theme(axis.text.x = element_text(size = 10),  
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+zx1<-read.table("折线图.txt",header = T,sep = "\t")
+ggplot(zx1,aes(x = as.factor(X),y = percent,color = class,group = class))+
+  geom_line(size = 2) +
+  geom_point(size = 3.5) +
+  scale_color_manual(values = c("#92bba1","#de9952" ))+
+  theme(axis.text.x = element_text(size = 10), 
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+ks.test(zx1$percent[1:5],zx1$percent[6:10])
+
+
+
+
+
+
+
+#Stage I specifically mutated gene#
+mutation1<-t(mutation1);mutation3<-t(mutation3)
+genes_28<-c(genes,"IGHA1")
+mutation1<-mutation1[,genes_28];mutation3<-mutation3[,genes_28]
+m1<-apply(mutation1,1,sum);m3<-apply(mutation3,1,sum)
+m1<-as.data.frame(m1);m1$transfer<-0;colnames(m1)[1]<-"score"
+m3<-as.data.frame(m3);m3$transfer<-1;colnames(m3)[1]<-"score"
+score_28<-rbind(m1,m3)
+score_28$mu1<-1;score_28$mu1[which(score_28$score < 1)]<-0
+score_28$mu2<-1;score_28$mu2[which(score_28$score < 2)]<-0
+score_28$mu3<-1;score_28$mu3[which(score_28$score < 3)]<-0
+score_28$mu4<-1;score_28$mu4[which(score_28$score < 4)]<-0
+score_28$mu5<-1;score_28$mu5[which(score_28$score < 5)]<-0
+score_28$mu6<-1;score_28$mu6[which(score_28$score < 6)]<-0
+score_28$mu7<-1;score_28$mu7[which(score_28$score < 7)]<-0
+score_28$mu8<-1;score_28$mu8[which(score_28$score < 8)]<-0
+score_28$mu9<-1;score_28$mu9[which(score_28$score < 9)]<-0
+score_28$mu10<-1;score_28$mu10[which(score_28$score < 10)]<-0
+score_28$mu11<-1;score_28$mu11[which(score_28$score < 11)]<-0
+score_28$mu12<-1;score_28$mu12[which(score_28$score < 12)]<-0
+score_28$mu13<-1;score_28$mu13[which(score_28$score < 13)]<-0
+score_28$mu14<-1;score_28$mu14[which(score_28$score < 14)]<-0
+score_28$mu15<-1;score_28$mu15[which(score_28$score < 15)]<-0
+score_28$mu16<-1;score_28$mu16[which(score_28$score < 16)]<-0
+score_28$mu17<-1;score_28$mu17[which(score_28$score < 17)]<-0
+score_28$mu18<-1;score_28$mu18[which(score_28$score < 18)]<-0
+score_28$mu19<-1;score_28$mu19[which(score_28$score < 19)]<-0
+score_28$mu20<-1;score_28$mu20[which(score_28$score < 20)]<-0
+score_28$mu21<-1;score_28$mu21[which(score_28$score < 21)]<-0
+score_28$mu22<-1;score_28$mu22[which(score_28$score < 22)]<-0
+score_28$mu23<-1;score_28$mu23[which(score_28$score < 23)]<-0
+score_28$mu24<-1;score_28$mu24[which(score_28$score < 24)]<-0
+score_28$mu25<-1;score_28$mu25[which(score_28$score < 25)]<-0
+score_28$mu26<-1;score_28$mu26[which(score_28$score < 26)]<-0
+score_28$mu27<-1;score_28$mu27[which(score_28$score < 27)]<-0
+score_28$mu28<-1;score_28$mu28[which(score_28$score < 28)]<-0
+
+
+score_28$score1<-0
+score_28$score1[which(score_28$score > 3 & score_28$score < 8)]<-4
+score_28$score1[which(score_28$score > 7 & score_28$score < 12)]<-8
+score_28$score1[which(score_28$score > 11 & score_28$score < 16)]<-12
+score_28$score1[which(score_28$score > 15 & score_28$score < 20)]<-16
+score_28$score1[which(score_28$score > 19 & score_28$score < 24)]<-20
+score_28$score1[which(score_28$score > 24 & score_28$score < 29)]<-24
+
+
+
+ggplot(score_28,aes(x = as.factor(transfer),y = score))+
+  geom_violin(aes(fill = as.factor(transfer)),trim=FALSE,color="white")+
+  #geom_boxplot(width = 0.5,outlier.colour = NA)+
+  stat_compare_means(comparisons = list(c("0", "1"))) +
+  scale_fill_manual(values = c( "#92bba1","#de9952" ))+
+  stat_summary(fun="mean",geom="point",shape=23,size=2,fill="white")+
+  theme(axis.text.x = element_text(size = 10),   
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+
+ao<-intersect(row.names(score_28),row.names(time))
+time_28<-time[ao,];score_28<-score_28[ao,]
+score_28<-cbind(score_28,time_28[,1:2])
+
+for(i in colnames(score_28)[5:32]){
+  pdf(file = paste0("28genes_",i,".pdf"))
+  fit1 <- survfit(Surv(days_to_death, vital_status) ~ get(i),data = score_28)
+  print(ggsurvplot(fit1,risk.table=F,
+                   palette = c("#9abeaf","#f1939c"),
+                   pval=TRUE,ggtheme = theme_bw(),
+                   ylab="Survival probabilities",legend=c(0.8,0.9),
+                   legend.title="",
+                   pval.method=TRUE))
+  dev.off() 
+}
+
+score_28_<-score_28[which(score_28$score < 5),]
+fit1 <- survfit(Surv(days_to_death, vital_status) ~ score,data = score_28_)
+ggsurvplot(fit1,risk.table=F,
+                 palette = c("#97a487","#9c9d99","#d8b75a","#f1939c","#db8c44"),
+                 pval=TRUE,ggtheme = theme_bw(),
+                 ylab="Survival probabilities",legend=c(0.8,0.9),
+                 legend.title="",
+                 pval.method=TRUE)
+
+
+
+ggplot(score_28,aes(x=as.factor(score),fill = as.factor(transfer))) + 
+  geom_bar(na.rm = T,position = "fill") +
+  scale_fill_manual(values = c("#d1c2d3","#806d9e")) +
+  #coord_flip()+
+  theme(axis.text.x = element_text(size = 10),  
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+
+#Enrichment analysis#
+library(clusterProfiler)
+library(org.Hs.eg.db)
+library(ggplot2)
+ego <- enrichGO(gene=genes_28,OrgDb = org.Hs.eg.db,keyType = "SYMBOL",ont = "BP",pvalueCutoff=0.05)
+#ego <- simplify(ego,cutoff=0.05,by="p.adjust",select_fun=min)  
+head(ego@result)
+geo_plot<-cbind(as.data.frame(ego@result[2]),as.data.frame(ego@result[5]))
+geo_plot<-cbind(geo_plot,as.data.frame(ego@result[3]))
+geo_plot<-cbind(geo_plot,as.data.frame(ego@result[9]))
+geo_plot<-geo_plot[1:30,]
+ggplot(geo_plot,aes(GeneRatio,reorder(Description,Count))) +
+  geom_point(aes(size=Count,color=pvalue)) +
+  scale_size_continuous(range = c(6,10)) +
+  scale_color_gradient(low="#681752",high = "#c08eaf") +
+  theme(axis.text.x = element_text(size = 10),    
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+#enrichplot#
+library(DOSE)
+library(enrichplot)
+library(dplyr)
+library(clusterProfiler)
+
+
+
+emapplot(
+  pairwise_termsim(ego),
+  showCategory = 25,
+  color = "p.adjust",
+  layout = "nicely",
+  node_scale = NULL,
+  line_scale = NULL,
+  min_edge = 0.2,
+  node_label_size = NULL,
+  cex_label_category = 1,
+  cex_category = NULL,
+  cex_line = 0.5
+)
+#Rescreening according to gene function#
+
+#kegg#
+id <- bitr(genes_28, fromType="SYMBOL", toType=c( "ENTREZID"), OrgDb="org.Hs.eg.db")
+id<-id$ENTREZID
+
+
+ekk <- enrichKEGG(gene= id,organism  = 'hsa', qvalueCutoff = 0.05)
+ekk@result
+
+emapplot(
+  pairwise_termsim(ekk),
+  showCategory = 25,
+  color = "p.adjust",
+  layout = "nicely",
+  node_scale = NULL,
+  line_scale = NULL,
+  min_edge = 0.2,
+  node_label_size = NULL,
+  cex_label_category = 1,
+  cex_category = NULL,
+  cex_line = 0.5
+)
+
+
+
+
+
+#The final screened mutant genes associated with early metastasis#
+
+mutation1<-t(mutation1);mutation3<-t(mutation3)
+genes_13<-c("FAT3","NRXN1","DCHS2","PCDH15","HYDIN","DNAH8","SYNE2","DNAH11","DNAH3","ADGRV1","USH2A","IGHA1")
+mutation1<-mutation1[,genes_13];mutation3<-mutation3[,genes_13]
+m1<-apply(mutation1,1,sum);m3<-apply(mutation3,1,sum)
+m1<-as.data.frame(m1);m1$transfer<-0;colnames(m1)[1]<-"score"
+m3<-as.data.frame(m3);m3$transfer<-1;colnames(m3)[1]<-"score"
+score_13<-rbind(m1,m3)
+score_13$mu<-1;score_13$mu[which(score_13$score == 0)]<-0
+
+
+score_13$score1<-score_13$score
+score_13$score1[which(score_13$score > 3)]<-4
+
+##The proportion of metastasis in samples with different mutation numbers was compared
+ggplot(score_13,aes(x = as.factor(transfer),y = score))+
+  geom_violin(aes(fill = as.factor(transfer)),trim=FALSE,color="white")+
+  #geom_boxplot(width = 0.5,outlier.colour = NA)+
+  stat_compare_means(comparisons = list(c("0", "1"))) +
+  scale_fill_manual(values = c(  "#92bba1","#de9952" ))+
+  stat_summary(fun="mean",geom="point",shape=23,size=2,fill="white")+
+  theme(axis.text.x = element_text(size = 10),   
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+
+#Survival analysis#
+ao<-intersect(row.names(score_13),row.names(time))
+time_13<-time[ao,];score_13<-score_13[ao,]
+score_13<-cbind(score_13,time_13[,1:2])
+fit1 <- survfit(Surv(days_to_death, vital_status) ~ mu,data = score_13)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#9abeaf","#f1939c"),
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE)
+
+
+ggplot(score_13,aes(x=as.factor(score1),fill = as.factor(transfer))) + 
+  geom_bar(na.rm = T,position = "fill") +
+  scale_fill_manual(values = c("#92bba1","#de9952")) +
+  #coord_flip()+
+  theme(axis.text.x = element_text(size = 10),   
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+
+
+###Classifier were constructed to verify whether mutations in the genes we identified were associated with early metastasis###
+mutation1<-read.csv("D://danni//1//结果图//突变//数据//mutation1.csv",row.names = 1)
+mutation3<-read.csv("D://danni//1//结果图//突变//数据//mutation3.csv",row.names = 1)
+mutation1<-t(mutation1);mutation3<-t(mutation3)
+genes_13<-c("FAT3","NRXN1","DCHS2","PCDH15","HYDIN","DNAH8","SYNE2","DNAH11","DNAH3","ADGRV1","USH2A","IGHA1")
+mutation1<-as.data.frame(mutation1[,genes_13]);mutation3<-as.data.frame(mutation3[,genes_13])
+mutation1$class<-0;mutation3$class<-1
+
+
+
+library(class)
+library(caret)
+library(e1071)
+library(pROC)
+library(backports)
+
+##K-nearest neighbor##
+mutation1_<-mutation1[sample(1:2171,76),]
+ao<-sample(1:76,15);ao1<-sample(1:76,15)
+
+train<-rbind(mutation1_[-ao,],mutation3[-ao1,])
+test<-rbind(mutation1_[ao,],mutation3[ao1,])
+
+ao<-c()
+for (k in 1:10) {
+  knnresult <- knn(train = train[,1:12],test = test[,1:12],cl=train$class,k = k)
+  table(test$class,knnresult)
+  #knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+  knn_roc <- roc(test$class,as.numeric(knnresult))
+  print(knn_roc)
+  #print(sum(diag(table(test4$class,knnresult)))/sum(table(test4$class,knnresult)))
+  ao[k]<-knn_roc$auc
+}
+
+max(ao)
+
+knnresult <- knn(train = train[,1:12],test = test[,1:12],cl=train$class,k = which(ao == max(ao)))
+table(test$class,knnresult)
+#knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+knn_roc <- roc(test$class,as.numeric(knnresult))
+knn_roc
+plot(knn_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='k近邻ROC曲线')
+
+
+
+test$test<-knnresult
+ao<-intersect(row.names(test),row.names(time))
+test<-cbind(test[ao,],time[ao,1:2])
+
+
+fit1 <- survfit(Surv(days_to_death, vital_status) ~ test,data = test)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#92bba1","#de9952"),
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+##SVM##
+mutation1_<-mutation1[sample(1:2171,76),]
+ao<-sample(1:76,15);ao1<-sample(1:76,15)
+
+train<-rbind(mutation1_[-ao,],mutation3[-ao1,])
+test<-rbind(mutation1_[ao,],mutation3[ao1,])
+
+svmres <- svm(class~.,data = train, type = 'C',kernel = 'radial')
+
+pre_svm <- predict(svmres,newdata = test)
+obs_p_svm <-data.frame(prob=pre_svm,obs=test$class)
+
+table(test$class,pre_svm,dnn=c("真实值","预测值"))
+
+#svm_roc <- multiclass.roc(transfer_s1_test$class,as.numeric(pre_svm))#
+svm_roc <- roc(test$class,as.numeric(pre_svm))
+svm_roc
+plot(svm_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='SVM模型ROC曲线 kernel = radial')
+
+
+
+test$test<-pre_svm
+ao<-intersect(row.names(test),row.names(time))
+test<-cbind(test[ao,],time[ao,1:2])
+
+
+fit1 <- survfit(Surv(days_to_death, vital_status) ~ test,data = test)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#92bba1","#de9952"),
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE)  
+
+
+#Naive bayes##
+mutation1_<-mutation1[sample(1:2171,76),]
+ao<-sample(1:76,15);ao1<-sample(1:76,15)
+
+train<-rbind(mutation1_[-ao,],mutation3[-ao1,])
+test<-rbind(mutation1_[ao,],mutation3[ao1,])
+
+
+nb.model <- naiveBayes(class~.,data = train)
+
+nb_predict <- predict(nb.model,newdata = test)
+
+nb.table <- table(actual=test$class,predict=nb_predict)
+nb.table
+nb_roc <- multiclass.roc(test$class,as.numeric(nb_predict))#
+nb_roc <- roc(test$class,as.numeric(nb_predict))#
+nb_roc 
+nb_ratio <- sum(diag(nb.table))/sum(nb.table)
+nb_ratio  #[1] 
+plot(nb_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='朴素贝叶斯')
+
+
+
+
+
+#Calculating mutational burden#
+
+setwd("/pub6/siyu/hdn/mutation")
+mutation <- read.table("/pub6/siyu/mutation/pancancer-1.txt",sep = "\t",header = T,row.names = 1)
+for (mu in 2:10){
+  mutation1 <- read.table(paste0("/pub6/siyu/mutation/pancancer-",mu,".txt"),sep = "\t",header = T,row.names = 1)
+  mutation<-rbind(mutation,mutation1)
+  print(mu)
+}
+colnames(mutation)<-gsub("\\.","-",colnames(mutation))
+mutation<-as.data.frame(t(mutation))
+#target<-read.table("target.txt",header = T,sep = "\t")  
+#mutation<-mutation[,target$Gene]
+mu_sep<-as.data.frame(apply(mutation,1,sum))
+
+clinical<-read.table("clinical.txt",sep = "\t",header = T,row.names = 1)
+clinical$category<-as.factor(clinical$category)
+
+ao<-intersect(row.names(clinical),row.names(mu_sep))
+mu_sep<-cbind(mu_sep[ao,],clinical[ao,c(4,7)])
+write.csv(mu_sep,"mu_sep.csv")   ###write.csv(mu_sep,"mu_sep_target.csv")
+
+
+
+mu_sep<-read.csv("mu_sep.csv",row.names = 1)
+colnames(mu_sep)[1]<-"number"
+mu_sep$class<-"primary tumor"
+mu_sep$class[which(mu_sep$category == 2 | mu_sep$category == 5 |mu_sep$category == 8 |mu_sep$category == 11)]<-"recurrence"
+mu_sep$class[which(mu_sep$category == 3 | mu_sep$category == 6 |mu_sep$category == 9 |mu_sep$category == 12)]<-"metastasis"
+
+ggplot(mu_sep) +
+  geom_boxplot(aes(x = factor(stage),y = number,color = as.factor(class)),outlier.colour = "white")+
+  geom_violin(aes(x = factor(stage),y = number,fill = as.factor(class)),trim=FALSE,color="white")+
+  scale_fill_manual(values = c("#f1939c","#9abeaf","#f8e0b0")) +
+  scale_color_manual(values = c("#f1939c","#9abeaf","#f8e0b0")) +
+  coord_cartesian(ylim = c(0,1000)) +
+  theme(axis.text.x = element_text(size = 10),   
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+ggplot(mu_sep,aes(x = factor(class),y = number,fill = as.factor(stage))) +
+  geom_boxplot(outlier.colour = "white")+
+  #geom_violin(aes(x = factor(class),y = number,fill = as.factor(stage)),trim=FALSE,color="white")+
+  scale_fill_manual(values = c("#9abeaf","#8fb2c9","#f8e0b0","#f1939c")) +
+  scale_color_manual(values = c("#9abeaf","#8fb2c9","#f8e0b0","#f1939c")) +
+  stat_summary_bin(aes(x = factor(class),y = number,color = as.factor(stage)),fun="mean",geom="point",shape=0,size=2)+
+  coord_cartesian(ylim = c(0,10)) +
+  theme(axis.text.x = element_text(size = 10),  
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+ggplot(mu_sep) +
+  geom_boxplot(aes(x = factor(class),y = number,fill = as.factor(class)),outlier.colour = "white")+
+  #geom_violin(aes(x = factor(class),y = number,fill = as.factor(class)),trim=FALSE,color="white")+
+  scale_fill_manual(values = c("#f1939c","#9abeaf","#f8e0b0")) +
+  scale_color_manual(values = c("#f1939c","#9abeaf","#f8e0b0")) +
+  coord_cartesian(ylim = c(0,1000)) +
+  theme(axis.text.x = element_text(size = 10),  
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+mu_sep_tr<-mu_sep#[which(mu_sep$class == "metastasis"),]
+mu_sep_tr$stage1<-"Other stage"
+mu_sep_tr$stage1[which(mu_sep_tr$stage == "Stage I")]<-"Stage I"
+ggplot(mu_sep_tr) +
+  geom_boxplot(aes(x = factor(stage1),y = number,fill = factor(class,levels = c("primary tumor","recurrence","metastasis"))),outlier.colour = "white")+
+  #geom_violin(aes(x = factor(stage1),y = number,fill = as.factor(stage1)),trim=FALSE,color="white")+
+  scale_fill_manual(values = c("#9abeaf","#f8e0b0","#f1939c")) +
+  scale_color_manual(values = c("#9abeaf","#f8e0b0","#f1939c")) +
+  stat_summary_bin(aes(x = factor(stage1),y = number,color = as.factor(class)),fun="mean",geom="point",shape=23,size=2)+
+  coord_cartesian(ylim = c(0,10)) +
+  theme(axis.text.x = element_text(size = 10), 
+        axis.text.y = element_text(size = 10),
+        legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+
+
+
+
+#########################CNV####################################
+rm(list = ls(all = T))
+setwd("D://danni//1//结果图//cnv")
+library(ggplot2)
+
+####Fisher exact test was used to screen stage-I specific copy number variation genes####
+###Copy number variation was combined with expression data to further screen genes###
+###Gene enrichment analysis###
+
+setwd("/pub6/siyu/hdn/cnv")
+cnv <- data.frame()
+#Rows represent samples, columns represent genes, and data are copy number status of genes in corresponding samples#
+# -1 meant single copy deletion and -2 meant homozygous deletion #
+# 1 meant low-level copy number amplification, 2 meant high-level copy number amplification#
+
+for (i in 1:10) {
+  cnv1 <- read.table(paste0("/pub6/siyu/cnv/pancancer-",i,".txt"), sep = "\t", row.names= 1, header = T, stringsAsFactors = F)
+  cnv <- rbind(cnv,cnv1)
+}
+colnames(cnv)<-gsub("\\.","-",colnames(cnv))
+cnv<-as.data.frame(t(cnv))
+
+
+clinical<-read.table("clinical.txt",sep = "\t",header = T,row.names = 1)
+clinical$category<-as.factor(clinical$category)
+
+
+#Data were separated by cancer stage and recurrence/metastasis status#
+ao<-intersect(row.names(clinical),row.names(cnv))
+cnv<-cbind(cnv[ao,],clinical[ao,c(4,7)])
+colnames(cnv)[24777]<-"class"
+cnv1<-cnv[which(cnv$class == 1 ),]
+cnv2<-cnv[which(cnv$class == 2 ),]
+cnv3<-cnv[which(cnv$class == 3 ),]
+cnv4<-cnv[which(cnv$class == 4 ),]
+cnv5<-cnv[which(cnv$class == 5 ),]
+cnv6<-cnv[which(cnv$class == 6 ),]
+cnv7<-cnv[which(cnv$class == 7 ),]
+cnv8<-cnv[which(cnv$class == 8 ),]
+cnv9<-cnv[which(cnv$class == 9 ),]
+cnv10<-cnv[which(cnv$class == 10 ),]
+cnv11<-cnv[which(cnv$class == 11 ),]
+cnv12<-cnv[which(cnv$class == 12 ),]
+
+
+
+
+
+###fisher exact test was used to calculate the p value of copy number variation associated with recurrence and metastasis###
+#The output is the p-value of copy number variation associated with recurrence and metastasis in each stage, example: p_cnv.xls#
+fp<-function(x1,x2){
+  ao<-c()
+  for(i in 1:24776){
+    a<-length(which(x1[,i] == "1" | x1[,i] == "2"))
+    b<-length(which(x2[,i] == "1" | x2[,i] == "2"))
+    c<-length(which(x1[,i] == "0" ))
+    d<-length(which(x2[,i] == "0" ))
+    data<-matrix(c(a,b,c,d),ncol = 2,nrow =2)
+    ao[i]<-fisher.test(data)$p
+    print(length(ao))
+  }
+  ao   
+}
+
+relapse_kz_s1<-fp(cnv1,cnv2)
+relapse_kz_s2<-fp(cnv4,cnv5)
+relapse_kz_s3<-fp(cnv7,cnv8)
+relapse_kz_s45<-fp(cnv10,cnv11)
+cnv_relapse_kz<-cbind(relapse_kz_s1,relapse_kz_s2,relapse_kz_s3,relapse_kz_s45)
+row.names(cnv_relapse_kz)<-colnames(cnv1)[1:24776]
+write.csv(cnv_relapse_kz,"cnv_relapse_kz.csv")
+
+transfer_kz_s1<-fp(cnv1,cnv3)
+transfer_kz_s2<-fp(cnv4,cnv6)
+transfer_kz_s3<-fp(cnv7,cnv9)
+transfer_kz_s45<-fp(cnv10,cnv12)
+cnv_transfer_kz<-cbind(transfer_kz_s1,transfer_kz_s2,transfer_kz_s3,transfer_kz_s45)
+row.names(cnv_transfer_kz)<-colnames(cnv1)[1:24776]
+write.csv(cnv_transfer_kz,"cnv_transfer_kz.csv")
+
+
+
+fp_<-function(x1,x2){
+  ao<-c()
+  for(i in 1:24776){
+    a<-length(which(x1[,i] == "-1" | x1[,i] == "-2"))
+    b<-length(which(x2[,i] == "-1" | x2[,i] == "-2"))
+    c<-length(which(x1[,i] == "0" ))
+    d<-length(which(x2[,i] == "0" ))
+    data<-matrix(c(a,b,c,d),ncol = 2,nrow =2)
+    ao[i]<-fisher.test(data)$p
+    print(length(ao))
+  }
+  ao  
+}
+
+relapse_ss_s1<-fp_(cnv1,cnv2)
+relapse_ss_s2<-fp_(cnv4,cnv5)
+relapse_ss_s3<-fp_(cnv7,cnv8)
+relapse_ss_s45<-fp_(cnv10,cnv11)
+cnv_relapse_ss<-cbind(relapse_ss_s1,relapse_ss_s2,relapse_ss_s3,relapse_ss_s45)
+row.names(cnv_relapse_ss)<-colnames(cnv1)[1:24776]
+write.csv(cnv_relapse_ss,"cnv_relapse_ss.csv")
+
+transfer_ss_s1<-fp_(cnv1,cnv3)
+transfer_ss_s2<-fp_(cnv4,cnv6)
+transfer_ss_s3<-fp_(cnv7,cnv9)
+transfer_ss_s45<-fp_(cnv10,cnv12)
+cnv_transfer_ss<-cbind(transfer_ss_s1,transfer_ss_s2,transfer_ss_s3,transfer_ss_s45)
+row.names(cnv_transfer_ss)<-colnames(cnv1)[1:24776]
+write.csv(cnv_transfer_ss,"cnv_transfer_ss.csv")
+
+
+
+
+
+#Genes specific for stage I were screened based on the p-value#
+relapse_kz<-read.csv("cnv_relapse_kz.csv",row.names = 1)
+relapse_kz<-relapse_kz[which(relapse_kz$relapse_kz_s1 < 0.05 & relapse_kz$relapse_kz_s2 > 0.05 &
+                               relapse_kz$relapse_kz_s3 > 0.05 & relapse_kz$relapse_kz_s45 > 0.05),]
+relapse_ss<-read.csv("cnv_relapse_ss.csv",row.names = 1)
+relapse_ss<-relapse_ss[which(relapse_ss$relapse_ss_s1 < 0.05 & relapse_ss$relapse_ss_s2 > 0.05 &
+                               relapse_ss$relapse_ss_s3 > 0.05 & relapse_ss$relapse_ss_s45 > 0.05),]
+transfer_kz<-read.csv("cnv_transfer_kz.csv",row.names = 1)
+transfer_kz<-transfer_kz[which(transfer_kz$transfer_kz_s1 < 0.05 & transfer_kz$transfer_kz_s2 > 0.05 &
+                                 transfer_kz$transfer_kz_s3 > 0.05 & transfer_kz$transfer_kz_s45 > 0.05),]
+transfer_ss<-read.csv("cnv_transfer_ss.csv",row.names = 1)
+transfer_ss<-transfer_ss[which(transfer_ss$transfer_ss_s1 < 0.05 & transfer_ss$transfer_ss_s2 > 0.05 &
+                                 transfer_ss$transfer_ss_s3 > 0.05 & transfer_ss$transfer_ss_s45 > 0.05),]
+
+
+
+
+
+##The copy number variation rate was calculated##
+
+
+for(i in 1:12){
+  cnv1 <- cnv[,na.omit(match(clinical$X[which(clinical$category==i)],colnames(cnv)))]
+a<-dim(cnv1)[2]+1;b<-dim(cnv1)[2]+4
+print(dim(cnv1))
+cnv1$amp <- apply(cnv1[,1:dim(cnv1)[2]],1,function(x) length(which(x==2))/length(x))
+cnv1$gain <- apply(cnv1[,1:dim(cnv1)[2]],1,function(x) length(which(x==1))/length(x))
+cnv1$loss <- apply(cnv1[,1:dim(cnv1)[2]],1,function(x) length(which(x==-1))/length(x))
+cnv1$del <- apply(cnv1[,1:dim(cnv1)[2]],1,function(x) length(which(x==-2))/length(x))
+cnv1fre <- cnv1[,a:b]  ##dim(cnv1)[2]+1   dim(cnv1)[2]+4
+write.table(cnv1fre, paste0("cnv-",i,"frequency.txt"), sep="\t",quote = F )
+
+
+#Data on the location of the gene in the chromosome : genelocation#
+genelocation <- read.table("/pub6/wenjing/cnv/genelocation (1)", sep = "\t", header = F, stringsAsFactors = F)
+location <- genelocation[,-c(5,6)]
+convert <- read.table("/pub6/wenjing/cnv/mart_export.txt", sep = "\t", header = T, stringsAsFactors = F)
+location$ensg <- convert[match(substr(location$V4,1,15),convert[,3]),1]
+
+cnv1$gene <- gsub("\\|.*","",rownames(cnv1))
+cnv1$ensg <- gsub(".*\\|","",rownames(cnv1))
+
+cnv1$ensg[-which((nchar(cnv1$ensg)>15)==TRUE)] <- location[match(cnv1$ensg[-which((nchar(cnv1$ensg)>15)==TRUE)],location$V7),6]
+cnv1$ensg <- substr(cnv1$ensg,1,15)
+cnv1 <- na.omit(cnv1)
+cnv1$enst <- location[match(cnv1$ensg,location$ensg),4]
+cnv1$chr <- location[match(cnv1$ensg,location$ensg),1]
+cnv1$start <- location[match(cnv1$ensg,location$ensg),2]
+cnv1$end <- location[match(cnv1$ensg,location$ensg),3]
+write.table(cnv1, paste0(i,"-cnvall.txt"), sep="\t",quote = F )
+print(i)
+}
+#The output is the copy number variation of a part of the sample, example:3-cnvall.txt #
+
+
+for(i in 1:12){
+  cnv1 <- read.table(paste0("D://danni//1//结果图//cnv//数据//",i,"-cnvall.txt"), sep = "\t", header = T,row.names = 1,stringsAsFactors = F)
+cnv1$loss <- 0-cnv1$loss
+cnv1$del <- 0-cnv1$del
+cnv1$chr[which(cnv1$chr=="chrX")] <- "chr23"
+cnv1$chr <- as.numeric(gsub("chr","",cnv1$chr))
+
+cnv2 <- cnv1[order(cnv1$chr,cnv1$start),]
+cnv2$position <- 1:dim(cnv2)[1]
+
+
+#The copy number variation rates of different chromosomes#
+a <- as.data.frame(table(cnv2$chr))$Freq
+b <- c()
+for (j in 1:23) {
+  b[j] <- sum(a[1:j])
+}
+
+ggplot() + 
+  geom_area(data = cnv2,aes(x = position,y = amp+gain),color = "#DE9952",fill = "#DE9952")+
+  geom_area(data = cnv2,aes(x = position,y = gain),color = "#D4CB71",fill = "#D4CB71")+
+  geom_area(data = cnv2,aes(x = position,y = loss+del),color = "#61AC85",fill = "#61AC85")+
+  geom_area(data = cnv2,aes(x = position,y = loss),color = "#C1DCC4",fill = "#C1DCC4")+
+  geom_vline(xintercept = b,linetype ="dotted")+
+  ylim(-1,1)+
+  theme(axis.text.x = element_blank(), 
+        axis.text.y = element_text(size = 13),
+        axis.line = element_line(),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+ggsave(paste0("cnv-",i,".pdf"),width = 5,height = 2)
+print(i)
+}
+
+
+
+
+
+
+
+
+
+####number of cnv####
+setwd("/pub6/siyu/hdn/cnv")
+cnv <- data.frame()
+for (i in 1:10) {
+  cnv1 <- read.table(paste0("/pub6/siyu/cnv/pancancer-",i,".txt"), sep = "\t", row.names= 1, header = T, stringsAsFactors = F)
+  cnv <- rbind(cnv,cnv1)
+}
+colnames(cnv)<-gsub("\\.","-",colnames(cnv))
+genelocation <- read.table("/pub6/siyu/ucsc-mRNA-FPKM-UQ/gene_location.txt", sep = "\t", header = T, stringsAsFactors = F)##ENSG
+cnv<-as.data.frame(t(cnv))
+
+clinical<-read.table("clinical.txt",sep = "\t",header = T,row.names = 1)
+clinical$category<-as.factor(clinical$category)
+
+ao<-intersect(row.names(clinical),row.names(cnv))
+cnv<-cbind(cnv[ao,],clinical[ao,c(4,7)])
+colnames(cnv)[c(24777,24778)]<-c("stage","class")
+
+ao<-c()
+for(i in i:7476){
+  ao[i]<-length(which(cnv[i,1:24776] == 1 | cnv[i,1:24776] == 2))
+  print(i)
+}
+kz<-as.data.frame(ao)
+row.names(kz)<-row.names(cnv)
+kz<-cbind(kz,cnv[,c(24777,24778)])
+write.csv(kz,"kz_count.csv")
+
+ao<-c()
+for(i in 1:7476){
+  ao[i]<-length(which(cnv[i,1:24776] == -1 | cnv[i,1:24776] == -2))
+  print(i)
+}
+ss<-as.data.frame(ao)
+row.names(ss)<-row.names(cnv)
+ss<-cbind(ss,cnv[,c(24777,24778)])
+write.csv(ss,"ss_count.csv")
+
+#The output is the amount of amplification or deletion in each sample#
+
+#amplification#
+library(ggplot2)
+kz_count<-read.csv("kz_count.csv",row.names = 1)
+kz_count$class[which(kz_count$class == 1 | kz_count$class == 4 | kz_count$class == 7 | kz_count$class == 10)]<-"primary"
+kz_count$class[which(kz_count$class == 2 | kz_count$class == 5 | kz_count$class == 8 | kz_count$class == 11)]<-"recurrence"
+kz_count$class[which(kz_count$class == 3 | kz_count$class == 6 | kz_count$class == 9 | kz_count$class == 12)]<-"metastasis"
+#The average amplification rate per sample#
+kz_count$ao[which(kz_count$class == "primary")]<-kz_count$ao[which(kz_count$class == "primary")]/6316
+kz_count$ao[which(kz_count$class == "recurrence")]<-kz_count$ao[which(kz_count$class == "recurrence")]/658
+kz_count$ao[which(kz_count$class == "metastasis")]<-kz_count$ao[which(kz_count$class == "metastasis")]/457
+
+ggplot(kz_count,aes(x = as.factor(stage),y = ao ,fill = factor(stage))) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#9abeaf","#8fb2c9","#f8e0b0","#f1939c")) +   #"#93b5cf","#eea08c","#e77c8e"
+  #coord_cartesian(ylim = c(0,2.5)) +
+  stat_summary(fun="mean",geom="point",shape=23,size=2,fill="white") + 
+  theme(axis.text.x = element_text(size = 10),   
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+
+##deletion#
+ss_count<-read.csv("ss_count.csv",row.names = 1)
+ss_count$class[which(ss_count$class == 1 | ss_count$class == 4 | ss_count$class == 7 | ss_count$class == 10)]<-"primary"
+ss_count$class[which(ss_count$class == 2 | ss_count$class == 5 | ss_count$class == 8 | ss_count$class == 11)]<-"recurrence"
+ss_count$class[which(ss_count$class == 3 | ss_count$class == 6 | ss_count$class == 9 | ss_count$class == 12)]<-"metastasis"
+
+ss_count$ao[which(ss_count$class == "primary")]<-ss_count$ao[which(ss_count$class == "primary")]/6316
+ss_count$ao[which(ss_count$class == "recurrence")]<-ss_count$ao[which(ss_count$class == "recurrence")]/658
+ss_count$ao[which(ss_count$class == "metastasis")]<-ss_count$ao[which(ss_count$class == "metastasis")]/457
+
+ggplot(ss_count,aes(x = as.factor(class),y = ao ,fill = factor(class))) +
+  geom_boxplot() +
+  scale_fill_manual(values = c("#93b5cf","#eea08c","#e77c8e")) +   #"#9abeaf","#8fb2c9","#f8e0b0","#f1939c"
+  #coord_cartesian(ylim = c(0,2.5)) +
+  stat_summary(fun="mean",geom="point",shape=23,size=2,fill="white") + 
+  theme(axis.text.x = element_text(size = 10),   
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+#Comparison of the number of copy number variations under different classification conditions#
+
+
+
+#Joint heatmap of copy number variation and expression#
+transfer_exp1<-as.data.frame(cbind(transfer_exp,row.names(transfer_exp)))
+level<-as.factor(row.names(location))
+colnames(transfer_exp1)<-c("1","2","3","4","gene")
+transfer_exp1<-melt(transfer_exp1,"gene")
+transfer_exp1$variable<-as.numeric(transfer_exp1$variable)
+ggplot(transfer_exp1,aes(x = factor(gene,levels = level) ,y = variable,fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "#1772b4",mid = "white",high = "#f1939c") +
+  ylim(-5,5) +
+  coord_polar(theta = "x") +
+  theme(#axis.text.x = element_blank(),   
+        axis.text.y = element_text(size = 10),
+        axis.line = element_line(),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+transfer_kz1<-as.data.frame(cbind(transfer_kz,row.names(transfer_kz)))
+level<-as.factor(row.names(location))
+colnames(transfer_kz1)<-c("1","2","3","4","gene")
+transfer_kz1<-melt(transfer_kz1,"gene")
+transfer_kz1$variable<-as.numeric(transfer_kz1$variable)
+transfer_kz1$value<-transfer_kz1$value-0.05
+ggplot(transfer_kz1,aes(x = factor(gene,levels = level) ,y = variable,fill = value)) +
+  geom_tile() +
+  scale_fill_gradient2(low = "#ec2b24",mid = "white",high = "#93b5cf") +
+  ylim(-5,5) +
+  coord_polar(theta = "x") +
+  theme(#axis.text.x = element_blank(),  
+    axis.text.y = element_text(size = 10),
+    axis.line = element_line(),
+    axis.title = element_blank(),
+    strip.background = element_blank(),
+    strip.text = element_blank(),
+    panel.background = element_blank(),
+    panel.border = element_blank(),
+    panel.grid = element_blank())
+
+
+
+
+  
+
+
+
+####Enrichment analysis of stage I metastasis-specific copy number variant genes####
+genes<-row.names(transfer_exp)
+
+
+library(clusterProfiler)
+library(org.Hs.eg.db)
+ego <- enrichGO(gene=genes,OrgDb = org.Hs.eg.db,keyType = "SYMBOL",ont = "BP",pvalueCutoff=0.05)
+head(ego@result)
+
+geo_plot<-cbind(as.data.frame(ego@result[2]),as.data.frame(ego@result[5]))
+geo_plot<-cbind(geo_plot,as.data.frame(ego@result[3]))
+geo_plot<-cbind(geo_plot,as.data.frame(ego@result[9]))
+geo_plot<-geo_plot[1:20,]
+ggplot(geo_plot,aes(GeneRatio,reorder(Description,Count))) +
+  geom_point(aes(size=Count,color=pvalue)) +
+  scale_size_continuous(range = c(6,10)) +
+  scale_color_gradient(low = "#61649f",high = "#e3b4b8") +
+  theme(axis.text.x = element_text(size = 10),    
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+#KEGG#
+gene_ENSE <- bitr(genes, fromType="SYMBOL", toType=c("ENSEMBL", "ENTREZID"), OrgDb="org.Hs.eg.db")
+ENSEMBL<-gene_ENSE$ENSEMBL  
+EG2Ensembl=toTable(org.Hs.egENSEMBL)
+geneLists=data.frame(ensembl_id=ENSEMBL)
+results=merge(geneLists,EG2Ensembl,by='ensembl_id',all.x=T)
+id=na.omit(results$gene_id)
+
+
+
+ekk <- enrichKEGG(gene= id,keyType = "kegg",organism  = 'human', qvalueCutoff = 0.05,pvalueCutoff = 0.05)
+ekk@result
+hh<-as.data.frame(ekk@result)
+row.names(hh)<-1:nrow(hh)
+hh$order<-factor(rev(as.integer(row.names(hh))),labels = rev(hh$Description))
+hh<-hh[1:9,]
+ggplot(hh,aes(y = order,x = Count)) +
+  geom_point(aes(size=Count,color=pvalue)) +
+  scale_size_continuous(range = c(6,10)) +
+  scale_color_gradient(low = "#61649f",high = "#e3b4b8") +
+  theme(axis.text.x = element_text(size = 10),   
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+
+
+#enrichplot#
+library(DOSE)
+library(enrichplot)
+library(dplyr)
+
+
+emapplot(
+  pairwise_termsim(ego),
+  showCategory = 20,
+  color = "p.adjust",
+  layout = "nicely",
+  node_scale = NULL,
+  line_scale = NULL,
+  min_edge = 0.2,
+  node_label_size = NULL,
+  cex_label_category = 1,
+  cex_category = NULL,
+  cex_line = 0.5
+)
+
+
+
+
+
+#####################TME############################
+#cox risk model identifies immune cells associated with early recurrence and metastasis#
+#Classifiers were constructed to verify the possibility of immune cells as biomarkers for predicting early recurrence and metastasis#
+#Differential analysis of immune characteristic scores#
+
+
+
+
+rm(list = ls(all = T))
+library(ggplot2)
+library(ggsignif)
+library(ggpubr)
+library(survival)
+library(survminer)
+library(forestplot)
+library(pheatmap)
+setwd("D://danni//1//结果图//肿瘤微环境//")
+#Read clinical data#
+cli<-read.table("D://danni//1//clinical.txt",header = T,sep = "\t",row.names = 1)
+
+time<-read.table("time.txt",header = T,sep = "\t")
+time<-time[-which(duplicated(substring(time$sampleID,1,12))),]
+time$sampleID<-substring(time$sampleID,1,12)
+time$sampleID<-gsub("\\.","-",time$sampleID)   
+row.names(time)<-time$sampleID;time<-time[,-1]
+for(i in 1:10850){
+  if(is.na(time$days_to_death[i])){
+    time$days_to_death[i]<-time$days_to_last_followup[i]
+  }}
+for(i in 1:10850){
+  if(is.na(time$days_to_new_tumor_event_after_initial_treatment[i])){
+    time$days_to_new_tumor_event_after_initial_treatment[i]<-time$days_to_death[i]
+  }}
+ao<-intersect(row.names(cli),row.names(time))
+cli_time<-cbind(cli[ao,],time[ao,3])
+colnames(cli_time)[10]<-"time"
+
+
+
+###Immune cell infiltration data: epic.txt , mcp.txt , TIMER.txt###
+##Each row represents a sample, each column represents a cell type, and the data are scores for the infiltration of that cell in that sample##
+
+
+#The three sets of data were grouped by recurrence and metastasis status and cancer stage#
+epic<-read.table("epic.txt",header = T,sep = "\t",row.names = 1)
+epic<-epic[-which(duplicated(substring(row.names(epic),1,12))),]
+row.names(epic)<-substring(row.names(epic),1,12)
+ao<-intersect(row.names(cli),row.names(epic))
+cli_ao<-cli[ao,];epic<-epic[ao,]
+epic$class<-as.factor(cli_ao$category);epic$stage<-as.factor(cli_ao$stage)
+epic[,1:8]<-log(epic[,1:8]+1)
+epic_relapse<-epic[-which(epic$class == 3 | epic$class == 6 | epic$class == 9 | epic$class == 12),]
+epic_transfer<-epic[-which(epic$class == 2 | epic$class == 5 | epic$class == 8 | epic$class == 11),]
+ao<-intersect(row.names(cli_time),row.names(epic_relapse))
+epic_relapse<-cbind(epic_relapse[ao,],cli_time[ao,c(10)])
+colnames(epic_relapse)[11]<-"time"
+#epic_relapse_s1$relapse<-as.factor(epic_relapse_s1$relapse)
+  epic_relapse$relapse<-0
+epic_relapse$relapse[which(epic_relapse$class == "2" |
+                              epic_relapse$class == "5" |
+                              epic_relapse$class == "8" |
+                              epic_relapse$class == "11")]<-1
+ao<-intersect(row.names(cli_time),row.names(epic_transfer))
+epic_transfer<-cbind(epic_transfer[ao,],cli_time[ao,c(10)])
+colnames(epic_transfer)[11]<-"time"
+epic_transfer$transfer<-0
+epic_transfer$transfer[which(epic_transfer$class == "3" |
+                                                              epic_transfer$class == "6" |
+                                                                epic_transfer$class == "9" |
+                                                               epic_transfer$class == "12")]<-1
+
+mcp<-read.table("mcp.txt",header = T,sep = "\t",row.names = 1)
+mcp<-mcp[-which(duplicated(substring(row.names(mcp),1,12))),]
+row.names(mcp)<-substring(row.names(mcp),1,12)
+ao<-intersect(row.names(cli),row.names(mcp))
+cli_ao<-cli[ao,];mcp<-mcp[ao,]
+mcp$class<-as.factor(cli_ao$category);mcp$stage<-as.factor(cli_ao$stage)
+mcp[,1:10]<-log(mcp[,1:10]+1)
+mcp_relapse<-mcp[-which(mcp$class == 3 | mcp$class == 6 | mcp$class == 9 | mcp$class == 12),]
+mcp_transfer<-mcp[-which(mcp$class == 2 | mcp$class == 5 | mcp$class == 8 | mcp$class == 11),]
+ao<-intersect(row.names(cli_time),row.names(mcp_relapse))
+mcp_relapse<-cbind(mcp_relapse[ao,],cli_time[ao,c(10)])
+colnames(mcp_relapse)[13]<-"time"
+mcp_relapse$relapse<-0
+ mcp_relapse$relapse[which(mcp_relapse$class == "2" |
+                             mcp_relapse$class == "5" |
+                           mcp_relapse$class == "8" |
+                          mcp_relapse$class == "11")]<-1
+ao<-intersect(row.names(cli_time),row.names(mcp_transfer))
+mcp_transfer<-cbind(mcp_transfer[ao,],cli_time[ao,c(10)])
+colnames(mcp_transfer)[13]<-"time"
+mcp_transfer$transfer<-0
+mcp_transfer$transfer[which(mcp_transfer$class == "3" |
+                                                              mcp_transfer$class == "6" |
+                                                              mcp_transfer$class == "9" |
+                                                               mcp_transfer$class == "12")]<-1
+timer<-read.table("TIMER.txt",header = T,sep = "\t",row.names = 1)
+timer<-timer[-which(duplicated(substring(row.names(timer),1,12))),]
+row.names(timer)<-substring(row.names(timer),1,12)
+ao<-intersect(row.names(cli),row.names(timer))
+cli_ao<-cli[ao,];timer<-timer[ao,]
+timer$class<-as.factor(cli_ao$category);timer$stage<-as.factor(cli_ao$stage)
+timer[,1:6]<-log(timer[,1:6]+1)
+timer$class<-as.factor(cli_ao$category);timer$stage<-as.factor(cli_ao$stage)
+timer_relapse<-timer[-which(timer$class == 3 | timer$class == 6 | timer$class == 9 | timer$class == 12),]
+timer_transfer<-timer[-which(timer$class == 2 | timer$class == 5 | timer$class == 8 | timer$class == 11),]
+ao<-intersect(row.names(cli_time),row.names(timer_relapse))
+timer_relapse<-cbind(timer_relapse[ao,],cli_time[ao,c(10)])
+colnames(timer_relapse)[9]<-"time"
+timer_relapse$relapse<-0
+timer_relapse$relapse[which(timer_relapse$class == "2" |
+                              timer_relapse$class == "5" |
+                              timer_relapse$class == "8" |
+                              timer_relapse$class == "11")]<-1
+ao<-intersect(row.names(cli_time),row.names(timer_transfer))
+timer_transfer<-cbind(timer_transfer[ao,],cli_time[ao,c(10)])
+colnames(timer_transfer)[9]<-"time"
+timer_transfer$transfer<-0
+timer_transfer$transfer[which(timer_transfer$class == "3" |
+                                timer_transfer$class == "6" |
+                                timer_transfer$class == "9" |
+                                timer_transfer$class == "12")]<-1
+
+
+
+#Take the intersection of samples in the three sets of data#
+#The union of immune cells from the three sets of data was taken#
+
+ao<-intersect(row.names(epic_relapse),row.names(mcp_relapse))
+epic_relapse<-epic_relapse[ao,];mcp_relapse<-mcp_relapse[ao,]
+ao<-intersect(row.names(epic_relapse),row.names(timer_relapse))
+epic_relapse<-epic_relapse[ao,];mcp_relapse<-mcp_relapse[ao,];timer_relapse<-timer_relapse[ao,]
+
+ao<-intersect(row.names(epic_transfer),row.names(mcp_transfer))
+epic_transfer<-epic_transfer[ao,];mcp_transfer<-mcp_transfer[ao,]
+ao<-intersect(row.names(epic_transfer),row.names(timer_transfer))
+epic_transfer<-epic_transfer[ao,];mcp_transfer<-mcp_transfer[ao,];timer_transfer<-timer_transfer[ao,]
+
+emt_relapse<-data.frame(Bcell = apply(as.data.frame(cbind(epic_relapse$Bcells,mcp_relapse$B.lineage,timer_relapse$B_cell)),1,mean))
+emt_relapse<-cbind(emt_relapse,apply(as.data.frame(cbind(epic_relapse$CAFs,mcp_relapse$Fibroblasts)),1,mean))
+emt_relapse<-cbind(emt_relapse,apply(as.data.frame(cbind(epic_relapse$CD4_Tcells,timer_relapse$CD4_Tcell)),1,mean))
+emt_relapse<-cbind(emt_relapse,apply(as.data.frame(cbind(epic_relapse$CD8_Tcells,mcp_relapse$CD8.T.cells,timer_relapse$CD8_Tcell)),1,mean))
+emt_relapse<-cbind(emt_relapse,apply(as.data.frame(cbind(epic_relapse$Endothelial,mcp_relapse$Endothelial.cells)),1,mean))
+emt_relapse<-cbind(emt_relapse,apply(as.data.frame(cbind(epic_relapse$Macrophages,timer_relapse$Macrophage)),1,mean))
+emt_relapse<-cbind(emt_relapse,apply(as.data.frame(cbind(epic_relapse$NKcells,mcp_relapse$NK.cells)),1,mean))
+emt_relapse<-cbind(emt_relapse,epic_relapse$otherCells)
+emt_relapse<-cbind(emt_relapse,mcp_relapse$T.cells)
+emt_relapse<-cbind(emt_relapse,mcp_relapse$Monocytic.lineage)
+emt_relapse<-cbind(emt_relapse,mcp_relapse$Cytotoxic.lymphocytes)
+emt_relapse<-cbind(emt_relapse,apply(as.data.frame(cbind(mcp_relapse$Myeloid.dendritic.cells,timer_relapse$Dendritic)),1,mean))
+emt_relapse<-cbind(emt_relapse,apply(as.data.frame(cbind(mcp_relapse$Neutrophils,timer_relapse$Neutrophil)),1,mean))
+colnames(emt_relapse)<-c("Bcells","Fibroblasts","CD4_Tcells","CD8_Tcells","Endothelial","Macrophages","NKcells","otherCells",
+                         "T.cells","Monocytic.lineage","Cytotoxic.lymphocytes","Dendritic","Neutrophil")
+row.names(emt_relapse)<-row.names(epic_relapse)
+emt_relapse$class<-epic_relapse$class;emt_relapse$stage<-epic_relapse$stage;emt_relapse$time<-epic_relapse$time
+emt_relapse_s1<-emt_relapse[which(emt_relapse$stage == "Stage I"),]
+emt_relapse_s1$relapse<-0
+emt_relapse_s1$relapse[which(emt_relapse_s1$class == "2")]<-1
+
+emt_transfer<-data.frame(Bcell = apply(as.data.frame(cbind(epic_transfer$Bcells,mcp_transfer$B.lineage,timer_transfer$B_cell)),1,mean))
+emt_transfer<-cbind(emt_transfer,apply(as.data.frame(cbind(epic_transfer$CAFs,mcp_transfer$Fibroblasts)),1,mean))
+emt_transfer<-cbind(emt_transfer,apply(as.data.frame(cbind(epic_transfer$CD4_Tcells,timer_transfer$CD4_Tcell)),1,mean))
+emt_transfer<-cbind(emt_transfer,apply(as.data.frame(cbind(epic_transfer$CD8_Tcells,mcp_transfer$CD8.T.cells,timer_transfer$CD8_Tcell)),1,mean))
+emt_transfer<-cbind(emt_transfer,apply(as.data.frame(cbind(epic_transfer$Endothelial,mcp_transfer$Endothelial.cells)),1,mean))
+emt_transfer<-cbind(emt_transfer,apply(as.data.frame(cbind(epic_transfer$Macrophages,timer_transfer$Macrophage)),1,mean))
+emt_transfer<-cbind(emt_transfer,apply(as.data.frame(cbind(epic_transfer$NKcells,mcp_transfer$NK.cells)),1,mean))
+emt_transfer<-cbind(emt_transfer,epic_transfer$otherCells)
+emt_transfer<-cbind(emt_transfer,mcp_transfer$T.cells)
+emt_transfer<-cbind(emt_transfer,mcp_transfer$Monocytic.lineage)
+emt_transfer<-cbind(emt_transfer,mcp_transfer$Cytotoxic.lymphocytes)
+emt_transfer<-cbind(emt_transfer,apply(as.data.frame(cbind(mcp_transfer$Myeloid.dendritic.cells,timer_transfer$Dendritic)),1,mean))
+emt_transfer<-cbind(emt_transfer,apply(as.data.frame(cbind(mcp_transfer$Neutrophils,timer_transfer$Neutrophil)),1,mean))
+colnames(emt_transfer)<-c("Bcells","Fibroblasts","CD4_Tcells","CD8_Tcells","Endothelial","Macrophages","NKcells","otherCells",
+                          "T.cells","Monocytic.lineage","Cytotoxic.lymphocytes","Dendritic","Neutrophil")
+row.names(emt_transfer)<-row.names(epic_transfer)
+emt_transfer$class<-epic_transfer$class;emt_transfer$stage<-epic_transfer$stage;emt_transfer$time<-epic_transfer$time
+emt_transfer_s1<-emt_transfer[which(emt_transfer$stage == "Stage I"),]
+emt_transfer_s1$transfer<-0
+emt_transfer_s1$transfer[which(emt_transfer_s1$class == "3")]<-1
+
+#The infiltrating data of 13 kinds of immune cells were output#
+#The row represents the samples shared by each set of data, and the column represents all immune cells in the three sets of data. The data is the infiltration of immune cells in the samples, example: emt.csv#
+
+
+#recurrence#
+for (i in 1:13) {
+  ggplot(emt_relapse,aes(x = class,y = get(colnames(emt_relapse)[i]) ,group = class)) +
+    geom_boxplot(fill = c("#93b5cf","#eea08c","#93b5cf","#eea08c","#93b5cf","#eea08c","#93b5cf","#eea08c")) +
+    ggtitle(colnames(emt_relapse)[i]) + 
+    coord_cartesian(ylim = boxplot.stats(emt_relapse[,i])$stats[c(1, 5)]*1.05) +
+    stat_summary(fun="mean",geom="point",shape=23,size=2,fill="white") + 
+    stat_compare_means(comparisons = list(c("1","2"),c("4","5"),c("7","8"),c("10","11")),
+                       label.y = c(boxplot.stats(emt_relapse[,i])$stats[3],
+                                   boxplot.stats(emt_relapse[,i])$stats[3],
+                                   boxplot.stats(emt_relapse[,i])$stats[3],
+                                   boxplot.stats(emt_relapse[,i])$stats[3])) + 
+    theme(axis.text.x = element_text(size = 10),   
+          axis.text.y = element_text(size = 10),
+          #legend.position = "top",
+          #legend.background = element_rect(fill="transparent", size=.5),
+          axis.line = element_line(size = 0.5, colour = "black"),
+          axis.title = element_blank(),
+          strip.background = element_blank(),
+          strip.text = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          panel.grid = element_blank())
+  ggsave(paste0("D://danni//1//结果图//肿瘤微环境//emt//recurrence_",colnames(emt_relapse)[i],".png"))
+}
+
+#Cox risk model was constructed based on the combined data#
+emt_relapse_cox1<-summary(coxph(Surv(time, relapse) ~ Bcells, data = emt_relapse_s1))$coefficients
+emt_relapse_cox1<-cbind(emt_relapse_cox1,as.data.frame(summary(coxph(Surv(time, relapse) ~ Bcells, data = emt_relapse_s1))[8])[,c(3,4)])
+for(i in colnames(emt_relapse_s1)[2:13]){
+  emt_relapse_cox11<-summary(coxph(Surv(time, relapse) ~ get(i), data = emt_relapse_s1))$coefficients
+  emt_relapse_cox11<-cbind(emt_relapse_cox11,as.data.frame(summary(coxph(Surv(time, relapse) ~ get(i), data = emt_relapse_s1))[8])[,c(3,4)])
+  emt_relapse_cox1<-rbind(emt_relapse_cox1,emt_relapse_cox11)
+}
+colnames(emt_relapse_cox1)<-c("coef","HR","error","z","p","CIlow","CIhigh")
+row.names(emt_relapse_cox1)<-colnames(emt_relapse)[1:13]
+
+emt_relapse_cox1<-emt_relapse_cox1[,c(2,5,6,7)]
+emt_relapse_cox1<-emt_relapse_cox1[which(emt_relapse_cox1$p < 0.05),]
+emt_relapse_cox1$gene<-row.names(emt_relapse_cox1)
+forestplot(emt_relapse_cox1, 
+           mean = emt_relapse_cox1$HR,
+           lower = emt_relapse_cox1$CIlow, 
+           upper = emt_relapse_cox1$CIhigh,
+           zero = 1,
+           xlog=FALSE,
+           fn.ci_norm = fpDrawCircleCI,
+           boxsize = 0.1, 
+           col=fpColors(line = "#69a794",    "#dd8047","#a5ab81","#d8b25c","#968c8c"
+                        box="#69a794"),    
+           lty.ci = 7,   
+           lwd.ci = 3,   
+           ci.vertices.height = 0.10,
+           txt_gp = fpTxtGp(ticks = gpar(cex = 0.5), xlab = gpar(cex = 0.7), cex = 0.7),
+           lineheight = "auto")
+
+for(i in 1:13){
+  emt_relapse_s1$cell<-"high"
+  emt_relapse_s1$cell[which(emt_relapse_s1[,i] < mean(emt_relapse_s1[,i]))]<-"low" 
+  ggplot(emt_relapse_s1,aes(x=as.factor(relapse),fill = as.factor(cell))) + 
+    geom_bar(na.rm = T,position = "fill") +
+    scale_fill_manual(values = c("#d1c2d3","#806d9e")) +
+    #coord_flip()+
+    theme(axis.text.x = element_text(size = 10),   
+          axis.text.y = element_text(size = 10),
+          #legend.position = "top",
+          #legend.background = element_rect(fill="transparent", size=.5),
+          axis.line = element_line(size = 0.5, colour = "black"),
+          axis.title = element_blank(),
+          strip.background = element_blank(),
+          strip.text = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          panel.grid = element_blank())
+  ggsave(paste0("D://danni//1//结果图//肿瘤微环境//cell//relapse_",colnames(emt_relapse)[i],".png"))
+}
+
+
+
+
+#metastasis#
+for (i in 1:13) {
+  ggplot(emt_transfer,aes(x = class,y = get(colnames(emt_transfer)[i]) ,fill = class)) +
+    geom_boxplot(fill = c("#93b5cf","#e77c8e","#93b5cf","#e77c8e","#93b5cf","#e77c8e","#93b5cf","#e77c8e"))+
+    ggtitle(colnames(emt_transfer)[i]) + 
+    coord_cartesian(ylim = boxplot.stats(emt_transfer[,i])$stats[c(1, 5)]*1.05) +
+    stat_compare_means(comparisons = list(c("1","3"),c("4","6"),c("7","9"),c("10","12")),
+                       label.y = c(boxplot.stats(emt_transfer[,i])$stats[3],
+                                   boxplot.stats(emt_transfer[,i])$stats[3],
+                                   boxplot.stats(emt_transfer[,i])$stats[3],
+                                   boxplot.stats(emt_transfer[,i])$stats[3])) + 
+    stat_summary(fun="mean",geom="point",shape=23,size=2,fill="white") + 
+    theme(axis.text.x = element_text(size = 10),   
+          axis.text.y = element_text(size = 10),
+          #legend.position = "top",
+          #legend.background = element_rect(fill="transparent", size=.5),
+          axis.line = element_line(size = 0.5, colour = "black"),
+          axis.title = element_blank(),
+          strip.background = element_blank(),
+          strip.text = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          panel.grid = element_blank())
+  ggsave(paste0("D://danni//1//结果图//肿瘤微环境//emt//metastasis_",colnames(emt_transfer)[i],".pdf"))
+}
+
+
+emt_transfer_cox1<-summary(coxph(Surv(time, transfer) ~ Bcells, data = emt_transfer_s1))$coefficients
+emt_transfer_cox1<-cbind(emt_transfer_cox1,as.data.frame(summary(coxph(Surv(time, transfer) ~ Bcells, data = emt_transfer_s1))[8])[,c(3,4)])
+for(i in colnames(emt_transfer_s1)[2:13]){
+  emt_transfer_cox11<-summary(coxph(Surv(time, transfer) ~ get(i), data = emt_transfer_s1))$coefficients
+  emt_transfer_cox11<-cbind(emt_transfer_cox11,as.data.frame(summary(coxph(Surv(time, transfer) ~ get(i), data = emt_transfer_s1))[8])[,c(3,4)])
+  emt_transfer_cox1<-rbind(emt_transfer_cox1,emt_transfer_cox11)
+}
+colnames(emt_transfer_cox1)<-c("coef","HR","error","z","p","CIlow","CIhigh")
+row.names(emt_transfer_cox1)<-colnames(emt_transfer)[1:13]
+
+emt_transfer_cox1<-emt_transfer_cox1[,c(2,5,6,7)]
+emt_transfer_cox1<-emt_transfer_cox1[which(emt_transfer_cox1$p < 0.05),]
+emt_transfer_cox1$gene<-row.names(emt_transfer_cox1)
+forestplot(emt_transfer_cox1,
+           mean = emt_transfer_cox1$HR,
+           lower = emt_transfer_cox1$CIlow, 
+           upper = emt_transfer_cox1$CIhigh,
+           zero = 1, 
+           xlog=FALSE, 
+           fn.ci_norm = fpDrawCircleCI, 
+           boxsize = 0.1,
+           col=fpColors(line = "#69a794", "#dd8047","#a5ab81","#d8b25c","#968c8c"
+                        box="#69a794"),    
+           lty.ci = 7,   
+           lwd.ci = 3,   
+           ci.vertices.height = 0.10, 
+           txt_gp = fpTxtGp(ticks = gpar(cex = 0.5), xlab = gpar(cex = 0.7), cex = 0.7),
+           lineheight = "auto") 
+
+
+for(i in 1:13){
+  emt_transfer_s1$cell<-"up"
+  emt_transfer_s1$cell[which(emt_transfer_s1[,i] < mean(emt_transfer_s1[,i]))]<-"down" 
+  ggplot(emt_transfer_s1,aes(x=as.factor(transfer),fill = as.factor(cell))) + 
+    geom_bar(na.rm = T,position = "fill") +
+    scale_fill_manual(values = c("#add5a2","#ec9bad")) +
+    #coord_flip()+
+    theme(axis.text.x = element_text(size = 10),   
+          axis.text.y = element_text(size = 10),
+          #legend.position = "top",
+          #legend.background = element_rect(fill="transparent", size=.5),
+          axis.line = element_line(size = 0.5, colour = "black"),
+          axis.title = element_blank(),
+          strip.background = element_blank(),
+          strip.text = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          panel.grid = element_blank())
+  ggsave(paste0("D://danni//1//结果图//肿瘤微环境//emt//柱状图//transfer_",colnames(emt_transfer)[i],".png"))
+}
+
+
+#Construct classifiers#
+
+library(class)
+library(caret)
+library(e1071)
+library(pROC)
+library(backports)
+
+#The test set was randomly selected#
+emt_transfer_s11<-emt_transfer_s1[c(sample(which(emt_transfer_s1$class == 1),77),which(emt_transfer_s1$class == 3)),]
+emt_transfer_s11$class<-as.factor(as.numeric(emt_transfer_s11$class))
+ao1<-sample(which(emt_transfer_s11$class == 1),15)
+ao2<-sample(which(emt_transfer_s11$class == 3),15)
+emt_transfer_train<-emt_transfer_s11[-c(ao1,ao2),]
+emt_transfer_train<-emt_transfer_train[,c(1,2,9,14)]
+emt_transfer_test<-emt_transfer_s11[c(ao1,ao2),]
+emt_transfer_test<-emt_transfer_test[,c(1,2,9,14)]
+
+
+##K-nearest neighbor##
+
+ao<-c()
+for (k in 1:10) {
+  knnresult <- knn(train = emt_transfer_train[,1:3],test = emt_transfer_test[,1:3],cl=emt_transfer_train$class,k = k)
+  table(emt_transfer_test$class,knnresult)
+  #knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+  knn_roc <- roc(emt_transfer_test$class,as.numeric(knnresult))
+  print(knn_roc)
+  #print(sum(diag(table(test4$class,knnresult)))/sum(table(test4$class,knnresult)))
+  ao[k]<-knn_roc$auc
+}
+
+max(ao)
+
+knnresult <- knn(train = emt_transfer_train[,1:3],test = emt_transfer_test[,1:3],cl=emt_transfer_train$class,k = which(ao == max(ao)))
+table(emt_transfer_test$class,knnresult)
+#knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+knn_roc <- roc(emt_transfer_test$class,as.numeric(knnresult))
+plot(knn_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='随机森林模型ROC曲线')
+
+emt_transfer_test$test<-knnresult
+ao<-intersect(row.names(emt_transfer_test),row.names(time_sur))
+surv<-cbind(emt_transfer_test[ao,],time_sur[ao,c(1,2)])
+fit1 <- survfit(Surv(days_to_death, vital_status) ~ test,data = surv)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#9abeaf","#f1939c"),
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+
+####Immune characteristic####
+#Immune.txt: Each row represents a sample, each column represents an immune feature, and the data is the score of the immune feature in the sample#
+
+cell<-read.table("D://danni//1//结果图//肿瘤微环境//免疫特征//Immune.txt",header = T,sep = "\t",row.names = 1)
+ao<-intersect(row.names(cli),row.names(cell))
+cli_ao<-cli[ao,];cell<-cell[ao,]
+cell$class<-as.factor(cli_ao$category);cell$stage<-as.factor(cli_ao$stage)
+#Data were separated by recurrence and metastasis status of the sample#
+cell_relapse_<-cell[-which(cell$class == 3 | cell$class == 6 | cell$class == 9 | cell$class == 12),]
+cell_transfer_<-cell[-which(cell$class == 2 | cell$class == 5 | cell$class == 8 | cell$class == 11),]
+
+
+#Distribution of scores for each characteristic across groups#
+#recurrence#
+for (i in 4:63) {
+  cell_relapse <- na.omit(cell_relapse_[,c(i,64,65)])
+  ggplot(cell_relapse,aes(x = class,y = get(colnames(cell_relapse_)[i]) ,group = class)) +
+    geom_boxplot(fill = c("#93b5cf","#eea08c","#93b5cf","#eea08c","#93b5cf","#eea08c","#93b5cf","#eea08c")) +
+    ggtitle(colnames(cell_relapse_)[i]) + 
+    coord_cartesian(ylim = boxplot.stats(cell_relapse_[,i])$stats[c(1, 5)]*1.05) +
+    stat_compare_means(comparisons = list(c("1","2"),c("4","5"),c("7","8"),c("10","11")),
+                       label.y = c(0,0,0,0)) + 
+    theme(axis.text.x = element_text(size = 10),  
+          axis.text.y = element_text(size = 10),
+          #legend.position = "top",
+          #legend.background = element_rect(fill="transparent", size=.5),
+          axis.line = element_line(size = 0.5, colour = "black"),
+          axis.title = element_blank(),
+          strip.background = element_blank(),
+          strip.text = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          panel.grid = element_blank())
+  ggsave(paste0("D://danni//1//结果图//肿瘤微环境//免疫特征//recurrence_",colnames(cell_relapse_)[i],".png"))
+}
+
+#metastasis#
+for (i in 4:63) {
+  cell_transfer <- na.omit(cell_transfer_[,c(i,64,65)])
+  ggplot(cell_transfer,aes(x = class,y = get(colnames(cell_transfer_)[i]) ,group = class)) +
+    geom_boxplot(fill = c("#93b5cf","#e77c8e","#93b5cf","#e77c8e","#93b5cf","#e77c8e","#93b5cf","#e77c8e"))+
+    ggtitle(colnames(cell_transfer_[i])) + 
+    coord_cartesian(ylim = boxplot.stats(cell_transfer_[,i])$stats[c(1, 5)]*1.05) +
+    stat_compare_means(comparisons = list(c("1","3"),c("4","6"),c("7","9"),c("10","12")),
+                       label.y = c(0,0,0,0)) + 
+    theme(axis.text.x = element_text(size = 10),  
+          axis.text.y = element_text(size = 10),
+          #legend.position = "top",
+          #legend.background = element_rect(fill="transparent", size=.5),
+          axis.line = element_line(size = 0.5, colour = "black"),
+          axis.title = element_blank(),
+          strip.background = element_blank(),
+          strip.text = element_blank(),
+          panel.background = element_blank(),
+          panel.border = element_blank(),
+          panel.grid = element_blank())
+  ggsave(paste0("D://danni//1//结果图//肿瘤微环境//免疫特征//metastasis_",colnames(cell_transfer_)[i],".png"))
+}
+
+
+
+#At the same time, the p values of the differences of immune characteristics between recurrence and recurrence, primary and metastasis in different cancer stages were output#
+#Rows represent different immune characteristics, columns represent cancer stage, and data are p-values : example: cell_relapse_p.txt#
+cell_relapse_p<-read.table("D://danni//1//结果图//肿瘤微环境//免疫特征//cell_relapse_p.txt",header = T ,sep = "\t",row.names = 1)
+cell_transfer_p<-read.table("D://danni//1//结果图//肿瘤微环境//免疫特征//cell_transfer_p.txt",header = T ,sep = "\t",row.names = 1)
+cell_relapse_p<-cell_relapse_p-0.05
+cell_transfer_p<-cell_transfer_p-0.05
+
+#Screening stage I specific immune characteristics#
+cell_relapse_p<-cell_relapse_p[c(which(cell_relapse_p$stage1 < 0 & cell_relapse_p$stage2 > 0 &
+                                         cell_relapse_p$stage3 > 0 & cell_relapse_p$stage45 > 0),
+                                 which(cell_relapse_p$stage1 > 0 & cell_relapse_p$stage2 < 0 &
+                                         cell_relapse_p$stage3 < 0 & cell_relapse_p$stage45 < 0),3,45,46,47,51),]
+cell_transfer_p<-cell_transfer_p[c(which(cell_transfer_p$stage1 < 0 & cell_transfer_p$stage2 > 0 &
+                                           cell_transfer_p$stage3 > 0 & cell_transfer_p$stage45 > 0),
+                                   which(cell_transfer_p$stage1 > 0 & cell_transfer_p$stage2 < 0 &
+                                           cell_transfer_p$stage3 < 0 & cell_transfer_p$stage45 < 0),23,49),]
+
+cell_relapse<-read.table("D://danni//1//结果图//肿瘤微环境//免疫特征//cell_relapse.txt",header = T ,sep = "\t")
+cell_relapse$p_<-"high"
+cell_relapse$p_[which(cell_relapse$p < 0.05)]<-"low"
+cell_transfer<-read.table("D://danni//1//结果图//肿瘤微环境//免疫特征//cell_transfer.txt",header = T ,sep = "\t")
+cell_transfer$p_<-"high"
+cell_transfer$p_[which(cell_transfer$p < 0.05)]<-"low"
+
+
+library(RColorBrewer)
+ggplot(cell_relapse,aes(x = stage, y  = cell, color = updown)) + 
+  geom_point(aes(size = p_))+ #,shape = 19
+  #scale_size_continuous(range = c(3,11),breaks=c(10,20,30,40,50,60))+ 
+  #scale_color_gradient2(low="blue",high="red",midpoint = 0)+
+  #scale_color_gradientn(colours = c("blue","white","red"))+
+  #scale_color_brewer(type = "seq",palette = "Set2") +
+  scale_colour_manual(values=c("#2b73af","#ee4866"),labels=c("down","up"))+
+  theme(axis.text.x = element_text(size = 10),   
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_blank(),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+ggplot(cell_transfer,aes(x = stage, y  = cell, color = updown)) + 
+  geom_point(aes(size = p_))+ #,shape = 19
+  #scale_size_continuous(range = c(3,11),breaks=c(10,20,30,40,50,60))+
+  #scale_color_gradient2(low="blue",high="red",midpoint = 0)+
+  #scale_color_gradientn(colours = c("blue","white","red"))+
+  #scale_color_brewer(type = "seq",palette = "Set2") +
+  scale_colour_manual(values=c("#2b73af","#ee4866"),labels=c("down","up"))+
+  theme(axis.text.x = element_text(size = 10),   
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_blank(),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+pheatmap(cell_relapse_p,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#e77c8e","#f1c4cd"))(floor(abs(min(cell_relapse_p))/0.001)),colorRampPalette(colors = c("#eef7f2","#66c18c"))(floor(abs(max(cell_relapse_p))/0.001))),
+         breaks = c(seq(min(cell_relapse_p),-0.001,by=0.001),seq(0,max(cell_relapse_p),by=0.001)),
+         angle_col = 0 
+)
+pheatmap(cell_transfer_p,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#e77c8e","#f1c4cd"))(floor(abs(min(cell_transfer_p))/0.001)),colorRampPalette(colors = c("#eef7f2","#66c18c"))(floor(abs(max(cell_transfer_p))/0.001))),
+         breaks = c(seq(min(cell_transfer_p),-0.001,by=0.001),seq(0,max(cell_transfer_p),by=0.001)),
+         angle_col = 0  
+)
+
+
+
+#The cox risk model was constructed#
+#recurence#
+cell_relapse<-cell_relapse_[,c("B.Cells.Memory","TCR.Richness","CTA.Score","Lymphocyte.Infiltration.Signature.Score",
+                               "B.Cells.Naive","T.Cells.Regulatory.Tregs","TCR.Evenness","Th17.Cells")]
+ao<-intersect(row.names(cell_relapse),row.names(cli_time))
+cell_relapse<-cbind(cell_relapse[ao,],cli_time[ao,c("category","time")])
+cell_relapse_s1<-cell_relapse[which(cell_relapse$category == 1 | cell_relapse$category == 2),]
+cell_relapse_s1$relapse<-0;cell_relapse_s1$relapse[which(cell_relapse_s1$category == 2)]<-1
+#cell_relapse_s1$relapse<-as.factor(cell_relapse_s1$relapse)
+
+
+cell_relapse_cox1<-summary(coxph(Surv(time, relapse) ~ B.Cells.Memory, data = cell_relapse_s1))$coefficients
+cell_relapse_cox1<-cbind(cell_relapse_cox1,as.data.frame(summary(coxph(Surv(time, relapse) ~ B.Cells.Memory, data = cell_relapse_s1))[8])[,c(3,4)])
+for(i in colnames(cell_relapse_s1)[2:8]){
+  cell_relapse_cox11<-summary(coxph(Surv(time, relapse) ~ get(i), data = cell_relapse_s1))$coefficients
+  cell_relapse_cox11<-cbind(cell_relapse_cox11,as.data.frame(summary(coxph(Surv(time, relapse) ~ get(i), data = cell_relapse_s1))[8])[,c(3,4)])
+  cell_relapse_cox1<-rbind(cell_relapse_cox1,cell_relapse_cox11)
+}
+colnames(cell_relapse_cox1)<-c("coef","HR","error","z","p","CIlow","CIhigh")
+row.names(cell_relapse_cox1)<-colnames(cell_relapse_s1)[1:8]
+
+cell_relapse_cox1<-cell_relapse_cox1[,c(2,5,6,7)]
+cell_relapse_cox1<-cell_relapse_cox1[which(cell_relapse_cox1$p < 0.05),]
+cell_relapse_cox1$gene<-row.names(cell_relapse_cox1)
+cell_relapse_cox1[,c(1,3,4)]<-log(cell_relapse_cox1[,c(1,3,4)])
+forestplot(cell_relapse_cox1, 
+           mean = cell_relapse_cox1$HR, 
+           lower = cell_relapse_cox1$CIlow,  
+           upper = cell_relapse_cox1$CIhigh,
+           zero = 0, 
+           xlog=FALSE,
+           fn.ci_norm = fpDrawCircleCI, 
+           boxsize = 0.1, 
+           col=fpColors(line = "#69a794",  "#dd8047","#a5ab81","#d8b25c","#968c8c"
+                        box="#69a794"),    
+           lty.ci = 7,   
+           lwd.ci = 3,   
+           ci.vertices.height = 0.10,
+           txt_gp = fpTxtGp(ticks = gpar(cex = 0.5), xlab = gpar(cex = 0.7), cex = 0.7), 
+           lineheight = "auto")
+
+
+#classifier#
+library(class)
+library(caret)
+library(e1071)
+library(pROC)
+library(backports)
+
+colnames(cell_relapse_s1)[9]<-"class";cell_relapse_s1$class<-as.factor(cell_relapse_s1$class)
+
+#20% of the data were randomly selected as the test set#
+cell_relapse_s11<-na.omit(cell_relapse_s1)
+cell_relapse_s11<-cell_relapse_s11[c(sample(which(cell_relapse_s11$class == 1),111),which(cell_relapse_s11$class == 2)),]
+cell_relapse_s11$class<-as.factor(as.numeric(cell_relapse_s11$class))
+ao1<-sample(which(cell_relapse_s11$class == 1),22)
+ao2<-sample(which(cell_relapse_s11$class == 2),22)
+cell_relapse_train<-cell_relapse_s11[-c(ao1,ao2),]
+cell_relapse_train<-cell_relapse_train[,c(5,7,8,9)]
+cell_relapse_test<-cell_relapse_s11[c(ao1,ao2),]
+cell_relapse_test<-cell_relapse_test[,c(5,7,8,9)]
+
+
+##K-nearest neighbor##
+
+ao<-c()
+for (k in 1:10) {
+  knnresult <- knn(train = cell_relapse_train[,1:3],test = cell_relapse_test[,1:3],cl=cell_relapse_train$class,k = k)
+  table(cell_relapse_test$class,knnresult)
+  #knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+  knn_roc <- roc(cell_relapse_test$class,as.numeric(knnresult))
+  print(knn_roc)
+  #print(sum(diag(table(test4$class,knnresult)))/sum(table(test4$class,knnresult)))
+  ao[k]<-knn_roc$auc
+}
+
+max(ao)
+
+knnresult <- knn(train = cell_relapse_train[,1:3],test = cell_relapse_test[,1:3],cl=cell_relapse_train$class,k = which(ao == max(ao)))
+table(cell_relapse_test$class,knnresult)
+#knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+knn_roc <- roc(cell_relapse_test$class,as.numeric(knnresult))
+plot(knn_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='随机森林模型ROC曲线')
+
+cell_relapse_test$test<-knnresult
+ao<-intersect(row.names(cell_relapse_test),row.names(time_sur))
+surv<-cbind(cell_relapse_test[ao,],time_sur[ao,c(1,2)])
+fit1 <- survfit(Surv(days_to_death, vital_status) ~ test,data = surv)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#9abeaf","#f1939c"),
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+
+#metastasis#
+cell_transfer<-cell_transfer_[,c("TGF.beta.Response","TCR.Shannon","T.Cells.CD4.Memory.Activated","Plasma.Cells","Macrophages.M2",
+                                 "Macrophages.M1","Macrophages","Lymphocytes","Lymphocyte.Infiltration.Signature.Score",
+                                 "IFN.gamma.Response","Fraction.Altered","Dendritic.Cells.Resting","B.Cells.Naive","Aneuploidy.Score")]
+ao<-intersect(row.names(cell_transfer),row.names(cli_time))
+cell_transfer<-cbind(cell_transfer[ao,],cli_time[ao,c("category","time")])
+cell_transfer_s1<-cell_transfer[which(cell_transfer$category == 1 | cell_transfer$category == 3),]
+cell_transfer_s1$transfer<-0;cell_transfer_s1$transfer[which(cell_transfer_s1$category == 3)]<-1
+#cell_transfer_s1$transfer<-as.factor(cell_transfer_s1$transfer)
+
+#Cox risk model#
+cell_transfer_cox1<-summary(coxph(Surv(time, transfer) ~ TGF.beta.Response, data = cell_transfer_s1))$coefficients
+cell_transfer_cox1<-cbind(cell_transfer_cox1,as.data.frame(summary(coxph(Surv(time, transfer) ~ TGF.beta.Response, data = cell_transfer_s1))[8])[,c(3,4)])
+for(i in colnames(cell_transfer_s1)[2:14]){
+  cell_transfer_cox11<-summary(coxph(Surv(time, transfer) ~ get(i), data = cell_transfer_s1))$coefficients
+  cell_transfer_cox11<-cbind(cell_transfer_cox11,as.data.frame(summary(coxph(Surv(time, transfer) ~ get(i), data = cell_transfer_s1))[8])[,c(3,4)])
+  cell_transfer_cox1<-rbind(cell_transfer_cox1,cell_transfer_cox11)
+}
+colnames(cell_transfer_cox1)<-c("coef","HR","error","z","p","CIlow","CIhigh")
+row.names(cell_transfer_cox1)<-colnames(cell_transfer_s1)[1:14]
+
+cell_transfer_cox1<-cell_transfer_cox1[,c(2,5,6,7)]
+cell_transfer_cox1<-cell_transfer_cox1[which(cell_transfer_cox1$p < 0.05),]
+cell_transfer_cox1$gene<-row.names(cell_transfer_cox1)
+cell_transfer_cox1[,c(1,3,4)]<-log(cell_transfer_cox1[,c(1,3,4)])
+forestplot(cell_transfer_cox1, 
+           mean = cell_transfer_cox1$HR, 
+           lower = cell_transfer_cox1$CIlow, 
+           upper = cell_transfer_cox1$CIhigh,
+           zero = 0, 
+           xlog=FALSE,
+           fn.ci_norm = fpDrawCircleCI,
+           boxsize = 0.1,
+           col=fpColors(line = "#69a794",    "#dd8047","#a5ab81","#d8b25c","#968c8c"
+                        box="#69a794"),   
+           lty.ci = 7,   
+           lwd.ci = 3,  
+           ci.vertices.height = 0.10,
+           txt_gp = fpTxtGp(ticks = gpar(cex = 0.5), xlab = gpar(cex = 0.7), cex = 0.7), 
+           lineheight = "auto")
+
+
+#Construct classifiers#
+library(class)
+library(caret)
+library(e1071)
+library(pROC)
+library(backports)
+
+colnames(cell_transfer_s1)[15]<-"class";cell_transfer_s1$class<-as.factor(cell_transfer_s1$class)
+
+cell_transfer_s11<-na.omit(cell_transfer_s1)
+cell_transfer_s11<-cell_transfer_s11[c(sample(which(cell_transfer_s11$class == 1),60),which(cell_transfer_s11$class == 3)),]
+ao1<-sample(which(cell_transfer_s11$class == 1),12)
+ao2<-sample(which(cell_transfer_s11$class == 3),12)
+cell_transfer_train<-cell_transfer_s11[-c(ao1,ao2),]
+cell_transfer_train<-cell_transfer_train[,-c(2,3,5,7,16,17)]
+cell_transfer_test<-cell_transfer_s11[c(ao1,ao2),]
+cell_transfer_test<-cell_transfer_test[,-c(2,3,5,7,16,17)]
+
+
+##K-nearest neighbor##
+
+ao<-c()
+for (k in 1:10) {
+  knnresult <- knn(train = cell_transfer_train[,1:10],test = cell_transfer_test[,1:10],cl=cell_transfer_train$class,k = k)
+  table(cell_transfer_test$class,knnresult)
+  #knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+  knn_roc <- roc(cell_transfer_test$class,as.numeric(knnresult))
+  print(knn_roc)
+  #print(sum(diag(table(test4$class,knnresult)))/sum(table(test4$class,knnresult)))
+  ao[k]<-knn_roc$auc
+}
+
+max(ao)
+
+knnresult <- knn(train = cell_transfer_train[,1:10],test = cell_transfer_test[,1:10],cl=cell_transfer_train$class,k = which(ao == max(ao)))
+table(cell_transfer_test$class,knnresult)
+#knn_roc <- multiclass.roc(test3$class,as.numeric(knnresult))
+knn_roc <- roc(cell_transfer_test$class,as.numeric(knnresult))
+plot(knn_roc, print.auc=TRUE, auc.polygon=TRUE, grid=c(0.1, 0.2),grid.col=c("green", "red"), max.auc.polygon=TRUE,auc.polygon.col="skyblue", print.thres=TRUE,main='随机森林模型ROC曲线')
+
+cell_transfer_test$test<-knnresult
+ao<-intersect(row.names(cell_transfer_test),row.names(time_sur))
+surv<-cbind(cell_transfer_test[ao,],time_sur[ao,c(1,2)])
+fit1 <- survfit(Surv(days_to_death, vital_status) ~ test,data = surv)
+ggsurvplot(fit1,risk.table=F,
+           palette = c("#9abeaf","#f1939c"),
+           pval=TRUE,ggtheme = theme_bw(),
+           ylab="Survival probabilities",legend=c(0.8,0.9),
+           legend.title="",
+           pval.method=TRUE) 
+
+
+
+
+
+
+
+
+####Differences in the expression of T-cell inflammation-related genes in different cancer stages####
+#Combined with transcriptome analysis data#
+setwd("/pub6/siyu/hdn/TME")
+
+#T cell.txt : T-cell inflammation-related genes#
+tcell<-read.table("T cell.txt",header = T,sep = "\t")
+gene_tcell<-tcell$Gene.Symbol
+
+ao<-intersect(relapse_exp$symbol,gene_tcell)
+ss<-c()
+for(i in 1:length(ao)){
+  ss[i]<-which(relapse_exp$symbol == ao[i])
+}
+relapse_tcell<-relapse_exp[ss,]
+write.csv(relapse_tcell,"relapse_tcell.csv")
+
+
+ao<-intersect(transfer_exp$symbol,gene_tcell)
+ss<-c()
+for(i in 1:length(ao)){
+  ss[i]<-which(transfer_exp$symbol == ao[i])
+}
+transfer_tcell<-transfer_exp[ss,]
+write.csv(transfer_tcell,"transfer_tcell.csv")
+
+#The output is the expression value of T cell inflammation-related genes, with each row representing a gene and each column representing the sample#
+
+
+
+pheatmap(relapse_tcell,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#66c18c","white"))(floor(abs(min(relapse_tcell))/0.001)),colorRampPalette(colors = c("white","#e77c8e"))(floor(abs(max(relapse_tcell))/0.001))),
+         breaks = c(seq(min(relapse_tcell),-0.001,by=0.001),seq(0,max(relapse_tcell),by=0.001)),
+         angle_col = 0 
+)
+
+
+pheatmap(transfer_tcell,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#66c18c","white"))(floor(abs(min(transfer_tcell))/0.001)),colorRampPalette(colors = c("white","#e77c8e"))(floor(abs(max(transfer_tcell))/0.001))),
+         breaks = c(seq(min(transfer_tcell),-0.001,by=0.001),seq(0,max(transfer_tcell),by=0.001)),
+         angle_col = 0 
+)
+
+
+
+
+
+
+
+
+
+####T cell disorder related genes####
+#The input is the name of T cell disorder related genes#
+up_regulation<-read.table("D://danni//1//结果图//肿瘤微环境//T细胞障碍//正调控.txt",header = T,sep = "\t")
+down_regulation<-read.table("D://danni//1//结果图//肿瘤微环境//T细胞障碍//负调控.txt",header = T,sep = "\t")
+gene_up<-up_regulation$gene
+gene_down<-down_regulation$gene
+
+
+
+#Combined with FC values from transcriptome analysis#
+ao<-intersect(relapse_fc$symbol,gene_up)
+ss<-c()
+for(i in 1:length(ao)){
+  ss[i]<-which(relapse_fc$symbol == ao[i])
+}
+relapse_up<-relapse_fc[ss,]
+row.names(relapse_up)<-relapse_up$symbol;relapse_up<-relapse_up[,-dim(relapse_up)[2]]
+relapse_up<-relapse_up[,c(1,3,5,7)]
+
+pheatmap(relapse_up,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#66c18c","white"))(floor(abs(min(relapse_up))/0.001)),colorRampPalette(colors = c("white","#e77c8e"))(floor(abs(max(relapse_up))/0.001))),
+         breaks = c(seq(min(relapse_up),-0.001,by=0.001),seq(0,max(relapse_up),by=0.001)),
+         angle_col = 0  #坐标方向
+)
+
+
+ao<-intersect(transfer_fc$symbol,gene_up)
+ss<-c()
+for(i in 1:length(ao)){
+  ss[i]<-which(transfer_fc$symbol == ao[i])
+}
+transfer_up<-transfer_fc[ss,]
+row.names(transfer_up)<-transfer_up$symbol;transfer_up<-transfer_up[,-dim(transfer_up)[2]]
+transfer_up<-transfer_up[,c(1,3,5,7)]
+
+pheatmap(transfer_up,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#66c18c","white"))(floor(abs(min(transfer_up))/0.001)),colorRampPalette(colors = c("white","#e77c8e"))(floor(abs(max(transfer_up))/0.001))),
+         breaks = c(seq(min(transfer_up),-0.001,by=0.001),seq(0,max(transfer_up),by=0.001)),
+         angle_col = 0  
+)
+
+
+
+ao<-intersect(relapse_fc$symbol,gene_down)
+ss<-c()
+for(i in 1:length(ao)){
+  ss[i]<-which(relapse_fc$symbol == ao[i])
+}
+relapse_down<-relapse_fc[ss,]
+row.names(relapse_down)<-relapse_down$symbol;relapse_down<-relapse_down[,-dim(relapse_down)[2]]
+relapse_down<-relapse_down[,c(1,3,5,7)]
+
+pheatmap(relapse_down,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#66c18c","white"))(floor(abs(min(relapse_down))/0.001)),colorRampPalette(colors = c("white","#e77c8e"))(floor(abs(max(relapse_down))/0.001))),
+         breaks = c(seq(min(relapse_down),-0.001,by=0.001),seq(0,max(relapse_down),by=0.001)),
+         angle_col = 0 
+)
+
+
+ao<-intersect(transfer_fc$symbol,gene_down)
+ss<-c()
+for(i in 1:length(ao)){
+  ss[i]<-which(transfer_fc$symbol == ao[i])
+}
+transfer_down<-transfer_fc[ss,]
+row.names(transfer_down)<-transfer_down$symbol;transfer_down<-transfer_down[,-dim(transfer_down)[2]]
+transfer_down<-transfer_down[,c(1,3,5,7)]
+
+pheatmap(transfer_down,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#66c18c","white"))(floor(abs(min(transfer_down))/0.001)),colorRampPalette(colors = c("white","#e77c8e"))(floor(abs(max(transfer_down))/0.001))),
+         breaks = c(seq(min(transfer_down),-0.001,by=0.001),seq(0,max(transfer_down),by=0.001)),
+         angle_col = 0 
+)
+
+
+
+
+
+####Ligand-receptor pairs####
+#Input is the name of the ligand-or receptor-associated gene,example : pairs_ligand.txt#
+ligand<-read.table("pairs_ligand.txt",header = T,sep = "\t")
+receptor<-read.table("pairs_receptor.txt",header = T,sep = "\t")
+gene_ligand<-ligand$gene
+gene_receptor<-receptor$gene
+
+#Ligand receptor pairs of related genes are combined with differentially expressed gene data in transcriptome analysis#
+#Genes specific for stage I recurrence and metastasis were found in the ligand-receptor pairs#
+#The selected ligand-receptor pairs were displayed using cytoscape#
+
+
+
+
+
+
+
+
+
+############Cell state################
+library(pheatmap)
+##Gene set enrichment analysis##
+library(GSEABase)
+library(GSVA)
+
+#The input is the gene related to each cell state, the first column of each row is the cell state, and the rest are the related genes: mygeneset2.gmt#
+mySet <- getGmt("D://danni//1//结果图//cell state//mygeneset2.gmt")
+
+
+#Combined with the normalized gene expression values#
+relapse_exp<-read.csv("relapse.csv",row.names = 1)
+gsva_relapse <- gsva(expr=as.matrix(relapse_exp), gset.idx.list=mySet, kcdf="Poisson", parallel.sz=4)
+transfer_exp<-read.csv("transfer.csv",row.names = 1)
+gsva_relapse <- gsva(expr=as.matrix(transfer_exp), gset.idx.list=mySet, kcdf="Poisson", parallel.sz=4)
+#The output is the score of the cell state-related genes in the sample#
+
+library(ggplot2)
+library(ggsignif)
+library(ggpubr)
+#The score of cell state related genes in recurrent and primary samples were compared#
+ggplot(relapse2,aes(x = factor(class),y = value ,fill = factor(class))) +
+  geom_boxplot()+
+  scale_fill_manual(values = c("#9abeaf","#8fb2c9","#f8e0b0","#f1939c")) +
+  stat_compare_means(comparisons = list(c("2","5"),c("2","8"),c("2","11")))+
+  facet_wrap(variable~.,ncol = 3,scales = "free") +
+  #coord_cartesian(ylim = ) +
+  theme(axis.text.x = element_text(size = 10),   
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        #strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+#The score of cell state related genes in metastatic and primary samples were compared#
+ggplot(transfer2,aes(x = factor(class),y = value ,fill = factor(class))) +
+  geom_boxplot()+
+  scale_fill_manual(values = c("#9abeaf","#8fb2c9","#f8e0b0","#f1939c")) +
+  stat_compare_means(comparisons = list(c("3","6"),c("3","9"),c("3","12")))+
+  facet_wrap(variable~.,ncol = 5,scales = "free") +
+  #coord_cartesian(ylim = ) +
+  theme(axis.text.x = element_text(size = 10),    ###主题
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        axis.title = element_blank(),
+        strip.background = element_blank(),
+        #strip.text = element_blank(),
+        panel.background = element_blank(),
+        panel.border = element_blank(),
+        panel.grid = element_blank())
+
+
+
+####Stage I specific cell status####
+#The input is the gene name corresponding to the cell state, the first column is the cell state, and the second column is the corresponding gene name#
+gene<-read.table("cellstate.txt",header = T,sep = "\t")
+fc_relapse<-fc_relapse[-which(duplicated(fc_relapse$symbol)),]
+fc_relapse<-na.omit(fc_relapse)
+row.names(fc_relapse)<-fc_relapse$symbol
+fc_transfer<-fc_transfer[-which(duplicated(fc_transfer$symbol)),]
+fc_transfer<-na.omit(fc_transfer)
+row.names(fc_transfer)<-fc_transfer$symbol
+
+
+
+Angiogenesis<-gene$GeneName[which(gene$Signature == "Angiogenesis")]
+Apoptosis<-gene$GeneName[which(gene$Signature == "Apoptosis")]
+CellCycle<-gene$GeneName[which(gene$Signature == "Cell.Cycle")]
+DNArepair<-gene$GeneName[which(gene$Signature == "DNA.repair")]
+EMT<-gene$GeneName[which(gene$Signature == "EMT")]
+Hypoxia<-gene$GeneName[which(gene$Signature == "Hypoxia")]
+Metastasis<-gene$GeneName[which(gene$Signature == "Metastasis")]
+Proliferation<-gene$GeneName[which(gene$Signature == "Proliferation")]
+Stemness<-gene$GeneName[which(gene$Signature == "Stemness")]
+
+
+
+state<-c("CellCycle","Apoptosis","Hypoxia","Metastasis")
+data<-matrix(data = NA,ncol = 6)
+colnames(data)<-c(colnames(fc_relapse),"class")
+for(i in state){
+  data1<-fc_relapse[get(i),]
+  data1$class<-i
+  data<-rbind(data,data1)
+}
+data<-na.omit(data)
+data1<-data[which(data$s1FC > 0.8 & data$s1p < 0.05 & data$s2345FC < 0.8),]
+data2<-data[which(data$s1FC < -0.8 & data$s1p < 0.05 & data$s2345FC > -0.8),]
+data<-rbind(data1,data2)
+data<-data[order(data$class),]
+labels_relapse<-data$class
+data_relapse<-data[,c(1,3)]
+
+pheatmap(data_relapse,cluster_col = F,cluster_row = F,display_numbers = F,fontsize_number = 11,labels_row  = labels_relapse,
+         color = c(colorRampPalette(colors = c("#1781b5","white"))(floor(abs(min(data_transfer))/0.001)),colorRampPalette(colors = c("white","#f9cb8b"))(floor(abs(max(data_transfer))/0.001))),
+         breaks = c(seq(min(data_transfer),-0.001,by=0.001),seq(0,max(data_transfer),by=0.001)),
+         angle_col = 0  #坐标方向
+)
+
+
+
+
+state<-c("CellCycle","Angiogenesis","EMT","DNArepair","Proliferation","Stemness")
+data<-matrix(data = NA,ncol = 6)
+colnames(data)<-c(colnames(fc_transfer),"class")
+for(i in state){
+  data1<-fc_transfer[get(i),]
+  data1$class<-i
+  data<-rbind(data,data1)
+}
+data<-na.omit(data)
+data1<-data[which(data$s1FC > 0.8 & data$s1p < 0.05 & data$s2345FC < 0.8),]
+data2<-data[which(data$s1FC < -0.8 & data$s1p < 0.05 & data$s2345FC > -0.8),]
+data<-rbind(data1,data2)
+data<-data[order(data$class),]
+labels_transfer<-data$class
+data_transfer<-data[,c(1,3)]
+
+pheatmap(data_transfer,cluster_col = F,cluster_row = F,display_numbers = F,fontsize_number = 11,labels_row  = labels_transfer,
+         color = c(colorRampPalette(colors = c("#1781b5","white"))(floor(abs(min(data_transfer))/0.001)),colorRampPalette(colors = c("white","#f9cb8b"))(floor(abs(max(data_transfer))/0.001))),
+         breaks = c(seq(min(data_transfer),-0.001,by=0.001),seq(0,max(data_transfer),by=0.001)),
+         angle_col = 0  #坐标方向
+)
+
+
+
+
+
+##############Treatment related########################
+
+
+####Immune checkpoint related genes####
+#Immune checkpoint related genes were screened from the previous normalized gene expression data#
+#The input data is a column of gene names#
+check_Tcell<-read.table("D://danni//1//结果图//肿瘤微环境//免疫检查点//check_Tcell.txt",header = T,sep = "\t")
+check_tumor<-read.table("D://danni//1//结果图//肿瘤微环境//免疫检查点//check_tumor.txt",header = T,sep = "\t")
+gene_Tcell<-check_Tcell$gene
+
+ao<-intersect(relapse_fc$symbol,gene_Tcell)
+ss<-c()
+for(i in 1:length(ao)){
+  ss[i]<-which(relapse_fc$symbol == ao[i])
+}
+relapse_Tcell<-relapse_fc[ss,]
+row.names(relapse_Tcell)<-relapse_Tcell$symbol;relapse_Tcell<-relapse_Tcell[,-dim(relapse_Tcell)[2]]
+relapse_Tcell<-relapse_Tcell[,c(1,3,5,7)]
+
+pheatmap(relapse_Tcell,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#66c18c","white"))(floor(abs(min(relapse_Tcell))/0.001)),colorRampPalette(colors = c("white","#e77c8e"))(floor(abs(max(relapse_Tcell))/0.001))),
+         breaks = c(seq(min(relapse_Tcell),-0.001,by=0.001),seq(0,max(relapse_Tcell),by=0.001)),
+         angle_col = 0  
+)
+
+
+ao<-intersect(transfer_fc$symbol,gene_Tcell)
+ss<-c()
+for(i in 1:length(ao)){
+  ss[i]<-which(transfer_fc$symbol == ao[i])
+}
+transfer_Tcell<-transfer_fc[ss,]
+row.names(transfer_Tcell)<-transfer_Tcell$symbol;transfer_Tcell<-transfer_Tcell[,-dim(transfer_Tcell)[2]]
+transfer_Tcell<-transfer_Tcell[,c(1,3,5,7)]
+
+transfer_Tcell<-transfer_Tcell[c(which(transfer_Tcell$stage1.FC > 0 & transfer_Tcell$stage2.FC < 0 & 
+                                         transfer_Tcell$stage3.FC < 0 & transfer_Tcell$stage45.FC < 0),
+                                 which(transfer_Tcell$stage1.FC < 0 & transfer_Tcell$stage2.FC > 0 & 
+                                         transfer_Tcell$stage3.FC > 0 & transfer_Tcell$stage45.FC > 0)),]
+pheatmap(transfer_Tcell,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#66c18c","white"))(floor(abs(min(transfer_tumor))/0.001)),colorRampPalette(colors = c("white","#e77c8e"))(floor(abs(max(transfer_tumor))/0.001))),
+         breaks = c(seq(min(transfer_tumor),-0.001,by=0.001),seq(0,max(transfer_tumor),by=0.001)),
+         angle_col = 0  
+)
+
+
+gene_tumor<-check_tumor$gene
+ao<-intersect(relapse_fc$symbol,gene_tumor)
+ss<-c()
+for(i in 1:length(ao)){
+  ss[i]<-which(relapse_fc$symbol == ao[i])
+}
+relapse_tumor<-relapse_fc[ss,]
+row.names(relapse_tumor)<-relapse_tumor$symbol;relapse_tumor<-relapse_tumor[,-dim(relapse_tumor)[2]]
+relapse_tumor<-relapse_tumor[,c(1,3,5,7)]
+
+pheatmap(relapse_tumor,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#66c18c","white"))(floor(abs(min(relapse_tumor))/0.001)),colorRampPalette(colors = c("white","#e77c8e"))(floor(abs(max(relapse_tumor))/0.001))),
+         breaks = c(seq(min(relapse_tumor),-0.001,by=0.001),seq(0,max(relapse_tumor),by=0.001)),
+         angle_col = 0 
+)
+
+
+ao<-intersect(transfer_fc$symbol,gene_tumor)
+ss<-c()
+for(i in 1:length(ao)){
+  ss[i]<-which(transfer_fc$symbol == ao[i])
+}
+transfer_tumor<-transfer_fc[ss,]
+row.names(transfer_tumor)<-transfer_tumor$symbol;transfer_tumor<-transfer_tumor[,-dim(transfer_tumor)[2]]
+transfer_tumor<-transfer_tumor[,c(1,3,5,7)]
+
+
+transfer_tumor<-transfer_tumor[c(which(transfer_tumor$stage1.FC > 0 & transfer_tumor$stage2.FC < 0 & 
+                                         transfer_tumor$stage3.FC < 0 & transfer_tumor$stage45.FC < 0),
+                                 which(transfer_tumor$stage1.FC < 0 & transfer_tumor$stage2.FC > 0 & 
+                                         transfer_tumor$stage3.FC > 0 & transfer_tumor$stage45.FC > 0)),]
+pheatmap(transfer_tumor,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#66c18c","white"))(floor(abs(min(transfer_tumor))/0.001)),colorRampPalette(colors = c("white","#e77c8e"))(floor(abs(max(transfer_tumor))/0.001))),
+         breaks = c(seq(min(transfer_tumor),-0.001,by=0.001),seq(0,max(transfer_tumor),by=0.001)),
+         angle_col = 0 
+)
+
+
+
+
+
+
+
+
+####Targeted therapy related genes####
+#Input is the name of the targeted therapy related genes
+target<-read.table("D://danni//1//结果图//肿瘤微环境//靶向治疗//target.txt",header = T,sep = "\t")
+gene_target<-target$gene
+#combined with differentially expressed gene data in transcriptome analysis#
+ao<-intersect(relapse_fc$symbol,gene_target)
+ss<-c()
+for(i in 1:length(ao)){
+  ss[i]<-which(relapse_fc$symbol == ao[i])
+}
+relapse_target<-relapse_fc[ss,]
+row.names(relapse_target)<-relapse_target$symbol;relapse_target<-relapse_target[,-dim(relapse_target)[2]]
+relapse_target<-relapse_target[,c(1,3,5,7)]
+
+pheatmap(relapse_target,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#66c18c","white"))(floor(abs(min(relapse_target))/0.001)),colorRampPalette(colors = c("white","#e77c8e"))(floor(abs(max(relapse_target))/0.001))),
+         breaks = c(seq(min(relapse_target),-0.001,by=0.001),seq(0,max(relapse_target),by=0.001)),
+         angle_col = 0 
+)
+
+
+
+ao<-intersect(transfer_fc$symbol,gene_target)
+ss<-c()
+for(i in 1:length(ao)){
+  ss[i]<-which(transfer_fc$symbol == ao[i])
+}
+transfer_target<-transfer_fc[ss,]
+row.names(transfer_target)<-transfer_target$symbol;transfer_target<-transfer_target[,-dim(transfer_target)[2]]
+transfer_target<-transfer_target[,c(1,3,5,7)]
+
+pheatmap(transfer_target,cluster_col = F,cluster_row = TRUE,show_rownames = T,display_numbers = F,fontsize_number = 11,
+         color = c(colorRampPalette(colors = c("#66c18c","white"))(floor(abs(min(transfer_target))/0.001)),colorRampPalette(colors = c("white","#e77c8e"))(floor(abs(max(transfer_target))/0.001))),
+         breaks = c(seq(min(transfer_target),-0.001,by=0.001),seq(0,max(transfer_target),by=0.001)),
+         angle_col = 0 
+)
+
+
+#Combined with mutation data#
+
+seq1<-apply(mutation1,1,mean)
+seq2<-apply(mutation2,1,mean)
+seq3<-apply(mutation3,1,mean)
+seq4<-apply(mutation4,1,mean)
+seq5<-apply(mutation5,1,mean)
+seq6<-apply(mutation6,1,mean)
+seq7<-apply(mutation7,1,mean)
+seq8<-apply(mutation8,1,mean)
+seq9<-apply(mutation9,1,mean)
+seq<-cbind(seq1,seq2,seq3,seq4,seq5,seq6,seq7,seq8,seq9)
+row.names(seq)<-row.names(mutation1)
+
+
+ao<-intersect(row.names(seq),target$Gene)
+seq<-seq[ao,]
+#The output is the average mutation rate of the targeted therapy related genes in different stages: target.csv
+
+
+
+
+
+mu_target<-seq
+colnames(mu_target)[1]<-"gene"
+mu_target<-mu_target[na.omit(match(row.names(ss2),mu_target$gene)),]
+mu_target<-mu_target[which(mu_target$seq3 > 0.05),]
+library(reshape2)
+mu_target<-melt(mu_target,"gene")
+mu_target$stage<-c(rep("stage I",42),rep("stage II",42),rep("stage III+IV+V",42))
+s<-c(rep("primary",14),rep("recurrence",14),rep("metastasis",14))
+mu_target$class<-rep(s,3)
+
+
+
+ggplot(mu_target,aes(x=as.factor(class),y = value,fill = as.factor(stage))) + 
+  geom_bar(stat="identity",position="dodge") +
+  scale_fill_manual(values = c("#9abeaf","#f8e0b0","#f1939c","#9abeaf","#f8e0b0","#f1939c","#9abeaf","#f8e0b0","#f1939c")) +
+  facet_wrap(.~gene,nrow = 10) +
+  #coord_flip()+
+  theme(axis.text.x = element_text(size = 10),  
+        axis.text.y = element_text(size = 10),
+        #legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        #axis.title = element_blank(),
+        strip.background = element_blank(),
+        #strip.text = element_blank(),
+        panel.background = element_blank()
+        #panel.border = element_blank(),
+        #panel.grid = element_blank()
+        )
+
+
+ggplot(mu_target,aes(x=as.factor(stage),y = value,fill = factor(class,levels = c("primary","recurrence","metastasis")))) + 
+  geom_bar(stat="identity",position="dodge") +
+  scale_fill_manual(values = c("#9abeaf","#f8e0b0","#f1939c")) +
+  facet_wrap(.~gene,nrow = 5,scales = "free") +
+  #coord_flip()+
+  theme(axis.text.x = element_text(size = 10),   
+        axis.text.y = element_text(size = 10),
+        legend.position = "top",
+        #legend.background = element_rect(fill="transparent", size=.5),
+        axis.line = element_line(size = 0.5, colour = "black"),
+        #axis.title = element_blank(),
+        strip.background = element_blank(),
+        #strip.text = element_blank(),
+        panel.background = element_blank()
+        #panel.border = element_blank(),
+        #panel.grid = element_blank()
+  )
+
+
